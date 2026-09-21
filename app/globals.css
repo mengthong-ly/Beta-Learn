@@ -1,132 +1,234 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/google-sans/400.css";
+@import "@fontsource/google-sans/500.css";
+@import "@fontsource/google-sans/600.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* Tokens: .design/pylearn/DESIGN.md (Notion). Dark values are derived — the source has none. */
+
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-ui);
+  --font-mono:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  /* Notion extras */
+  --color-link: var(--link);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-code-inline: var(--code-inline);
+  --color-tag-purple-fg: var(--tag-purple-fg);
+  --color-slate: var(--slate);
+  --color-tint-sky: var(--tint-sky);
+  --color-tint-peach: var(--tint-peach);
+  --color-tint-lavender: var(--tint-lavender);
+  --color-tint-mint: var(--tint-mint);
+  --color-tint-rose: var(--tint-rose);
+  --color-tint-yellow: var(--tint-yellow);
+
+  /* rounded.sm/md/lg from DESIGN.md: 6 / 8 (buttons) / 12 (cards) */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
+
+  --shadow-modal: 0 16px 48px -8px rgb(15 15 15 / 0.16);
+}
+
+/* UI/reading font, switchable from the Appearance menu. Code always uses --font-mono. */
+:root,
+[data-font="mono"] {
+  --font-ui: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --reading-size: 15px;
+  --reading-tracking: 0;
+}
+[data-font="poppins"] {
+  --font-ui: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --reading-size: 15px; /* Poppins runs large */
+  --reading-tracking: -0.005em;
+}
+[data-font="google-sans"] {
+  --font-ui: "Google Sans", ui-sans-serif, system-ui, sans-serif;
+  --reading-size: 16px;
+  --reading-tracking: 0;
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+  --radius: 12px;
+  --background: #ffffff;
+  --foreground: #37352f;
+  --card: #ffffff;
+  --card-foreground: #37352f;
+  --popover: #ffffff;
+  --popover-foreground: #37352f;
+  --primary: #5645d4;
+  --primary-foreground: #ffffff;
+  --secondary: #f6f5f4;
+  --secondary-foreground: #37352f;
+  --muted: #f6f5f4;
+  --muted-foreground: #6b6962; /* steel #787671 fails AA on surface */
+  --accent: #efeeec;
+  --accent-foreground: #1a1a1a;
+  --destructive: #c92a2a; /* AA on its own tint */
+  --border: #e5e3df;
+  --input: #c8c4be;
+  --ring: #0075de;
+  --chart-1: #5645d4;
+  --chart-2: #0075de;
+  --chart-3: #1aae39;
+  --chart-4: #dd5b00;
+  --chart-5: #ff64c8;
+  --sidebar: #f6f5f4;
+  --sidebar-foreground: #5d5b54;
+  --sidebar-primary: #5645d4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ebeae7;
+  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-border: #e5e3df;
+  --sidebar-ring: #0075de;
+
+  --link: #0075de;
+  --success: #0f7a2c; /* brand green is 2.5:1 on mint */
+  --code-inline: #c4302b;
+  --tag-purple-fg: #391c57;
+  --warning: #a8480a;
+  --slate: #5d5b54;
+  --tint-sky: #dcecfa;
+  --tint-peach: #ffe8d4;
+  --tint-lavender: #e6e0f5;
+  --tint-mint: #d9f3e1;
+  --tint-rose: #fde0ec;
+  --tint-yellow: #fef7d6;
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+  --background: #191919;
+  --foreground: #e3e2e0;
+  --card: #202020;
+  --card-foreground: #e3e2e0;
+  --popover: #252525;
+  --popover-foreground: #e3e2e0;
+  --primary: #7b6ce6;
+  --primary-foreground: #ffffff;
+  --secondary: #252525;
+  --secondary-foreground: #e3e2e0;
+  --muted: #202020;
+  --muted-foreground: #9b9a97;
+  --accent: #2c2c2c;
+  --accent-foreground: #f1f1ef;
+  --destructive: #ff6b6b;
+  --border: #2f2f2f;
+  --input: #3d3d3d;
+  --ring: #529cca;
+  --chart-1: #7b6ce6;
+  --chart-2: #529cca;
+  --chart-3: #4dab6f;
+  --chart-4: #ff8a3d;
+  --chart-5: #ff64c8;
+  --sidebar: #202020;
+  --sidebar-foreground: #9b9a97;
+  --sidebar-primary: #7b6ce6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2c2c2c;
+  --sidebar-accent-foreground: #f1f1ef;
+  --sidebar-border: #2f2f2f;
+  --sidebar-ring: #529cca;
+
+  --link: #529cca;
+  --success: #4dab6f;
+  --code-inline: #ff7369;
+  --tag-purple-fg: #d6b6f6;
+  --warning: #ff8a3d;
+  --slate: #b4b3b0;
+  --tint-sky: rgb(0 117 222 / 0.16);
+  --tint-peach: rgb(221 91 0 / 0.16);
+  --tint-lavender: rgb(123 63 242 / 0.18);
+  --tint-mint: rgb(26 174 57 / 0.14);
+  --tint-rose: rgb(255 100 200 / 0.14);
+  --tint-yellow: rgb(245 215 94 / 0.14);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
   body {
-    @apply bg-background text-foreground;
-    }
-  button:not(:disabled), [role="button"]:not(:disabled) {
+    @apply bg-background text-foreground antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
     cursor: pointer;
-    }
+  }
   html {
     @apply font-sans;
-    }
+  }
+  * {
+    scrollbar-width: thin;
+    /* JetBrains Mono ligatures turn != into ≠: learners must see what to type */
+    font-variant-ligatures: none;
+    font-feature-settings:
+      "calt" 0,
+      "liga" 0;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+/* Monaco: highlight the line a traceback points at */
+.error-line {
+  background: color-mix(in srgb, var(--destructive) 14%, transparent);
+}
+.inspect-line {
+  background: color-mix(in srgb, var(--link) 14%, transparent);
+}
+.inspect-glyph {
+  background: var(--link);
+  width: 3px !important;
+  margin-left: 4px;
+}
+.error-glyph {
+  background: var(--destructive);
+  width: 3px !important;
+  margin-left: 4px;
 }

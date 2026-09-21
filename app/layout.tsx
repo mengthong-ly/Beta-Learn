@@ -1,29 +1,39 @@
-import { Geist, Geist_Mono } from "next/font/google"
+import type { Metadata } from "next"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'})
+export const metadata: Metadata = {
+  title: { default: "ThongLearn", template: "%s · ThongLearn" },
+  description:
+    "Learn Python fast: lessons, a guide book, a real editor, and a look inside what Python is doing.",
+}
 
-const fontMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-})
+// Applies the saved font before first paint (no flash). Mirrors setFont() in appearance-menu.tsx.
+const fontScript = `try{var f=localStorage.getItem("font");if(f)document.documentElement.dataset.font=f}catch(e){}`
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
+      data-font="mono"
+      className="antialiased"
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: fontScript }} />
+      </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <TooltipProvider delayDuration={300}>
+            {children}
+            <Toaster position="bottom-center" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

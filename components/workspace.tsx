@@ -1,0 +1,533 @@
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import dynamic from "next/dynamic"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
+import { useLiveQuery } from "dexie-react-hooks"
+import { toast } from "sonner"
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FileCode2Icon,
+  FlaskConicalIcon,
+  LightbulbIcon,
+  PanelRightIcon,
+  PlayIcon,
+  RotateCcwIcon,
+  SquareIcon,
+} from "lucide-react"
+import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels"
+
+import { AppSidebar } from "@/components/app-sidebar"
+import { CommandMenu } from "@/components/command-menu"
+import { HistoryList } from "@/components/history-list"
+import { InspectPane } from "@/components/inspect-pane"
+import { OutputPane } from "@/components/output-pane"
+import { Button } from "@/components/ui/button"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Spinner } from "@/components/ui/spinner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { WorkspaceContext } from "@/components/workspace-context"
+import { docHref, docKey, findDoc, guideIndex } from "@/lib/docs"
+import { useMediaQuery } from "@/hooks/use-mobile"
+import { db } from "@/lib/db"
+import { GUIDE_STARTER, playground, type Lesson } from "@/lib/lesson-parser"
+import { reset, run, show, stop, useRunner } from "@/lib/runner"
+
+// Monaco touches `window`; render it only in the browser.
+const CodeEditor = dynamic(
+  () => import("@/components/code-editor").then((m) => m.CodeEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4 text-sm text-muted-foreground">Loading editor…</div>
+    ),
+  }
+)
+
+function Tip({
+  label,
+  keys,
+  children,
+}: {
+  label: string
+  keys?: string[]
+  children: React.ReactElement
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>
+        {label}
+        {keys && (
+          <KbdGroup className="ml-1">
+            {keys.map((k) => (
+              <Kbd key={k}>{k}</Kbd>
+            ))}
+          </KbdGroup>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function toggle(p: PanelImperativeHandle | null) {
+  if (p?.isCollapsed()) p.expand()
+  else p?.collapse()
+}
+
+/**
+ * The persistent app shell (lives in the (workspace) layout, so it survives navigation:
+ * Python, the editor and the output never reload). Each page renders into the reading pane.
+ */
+export function Workspace({
+  lessons,
+  guide,
+  children,
+}: {
+  lessons: Lesson[]
+  guide: Lesson[]
+  children: React.ReactNode
+}) {
+  const router = useRouter()
+  const [, route, param] = usePathname().split("/")
+  const runId = route === "run" ? Number(param) : undefined
+  const savedRun = useLiveQuery(
+    () => (runId ? db.runs.get(runId) : undefined),
+    [runId]
+  )
+  const done = useLiveQuery(
+    () => db.progress.toCollection().primaryKeys(),
+    [],
+    [] as string[]
+  )
+
+  const doc =
+    (route === "lesson"
+      ? lessons.find((l) => l.id === param)
+      : route === "guide"
+        ? param
+          ? guide.find((g) => g.id === param)
+          : guideIndex
+        : route === "run"
+          ? findDoc(savedRun?.lessonId, lessons, guide)
+          : undefined) ?? playground
+  const key = docKey(doc)
+  const starter = doc.starter || GUIDE_STARTER
+  const siblings =
+    doc.kind === "lesson"
+      ? lessons
+      : doc.kind === "guide" && doc.id !== "guide"
+        ? guide
+        : []
+  const idx = siblings.indexOf(doc)
+
+  const state = useRunner()
+  const [code, setCode] = useState("")
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [tab, setTab] = useState("output")
+  const [mobileTab, setMobileTab] = useState("read")
+  // A line picked in the Inspect tab; cleared whenever a new run starts.
+  const [picked, setPicked] = useState<{ line: number; runKey: number }>()
+  const rightPane = usePanelRef()
+  // Below 1024px three panes get too cramped, so switch to tabs.
+  const compact = useMediaQuery("(max-width: 1023px)")
+
+  // Load the draft (or starter) when switching docs.
+  useEffect(() => {
+    if (runId) return
+    let live = true
+    reset()
+    db.drafts.get(key).then((d) => live && setCode(d?.code ?? starter))
+    return () => {
+      live = false
+    }
+  }, [key, starter, runId])
+
+  // Restore a past run: editor state during render, output pane via the runner store.
+  const [restoredId, setRestoredId] = useState<number>()
+  if (savedRun && savedRun.id !== restoredId) {
+    setRestoredId(savedRun.id)
+    setCode(savedRun.code)
+  }
+  useEffect(() => {
+    if (savedRun) show(savedRun)
+  }, [savedRun?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const draftTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const edit = (v: string) => {
+    setCode(v)
+    clearTimeout(draftTimer.current)
+    draftTimer.current = setTimeout(
+      () => db.drafts.put({ lessonId: key, code: v }),
+      400
+    )
+  }
+
+  const execute = async (withCheck = false) => {
+    if (rightPane.current?.isCollapsed()) rightPane.current.expand()
+    if (tab === "history") setTab("output")
+    setMobileTab("output")
+    const res = await run(code, withCheck ? doc.check : undefined)
+    await db.runs.add({
+      lessonId: key,
+      createdAt: Date.now(),
+      code,
+      status: res.status,
+      lines: res.lines,
+      ms: res.ms,
+      error: res.error,
+      errorLine: res.errorLine,
+      check: res.check,
+      inspect: res.inspect,
+    } as never)
+    if (res.check?.pass && !done.includes(key)) {
+      await db.progress.put({ lessonId: key, completedAt: Date.now() })
+      const next = lessons[lessons.indexOf(doc) + 1]
+      toast.success(`${doc.title} complete!`, {
+        description: next
+          ? `Up next: ${next.title}`
+          : "You finished the whole course 🎉",
+        action: next
+          ? {
+              label: "Next lesson",
+              onClick: () => router.push(`/lesson/${next.id}`),
+            }
+          : undefined,
+      })
+    }
+  }
+
+  const executeRef = useRef(execute)
+  useEffect(() => {
+    executeRef.current = execute
+  })
+
+  // Global shortcuts (Monaco handles ⌘↵ itself while focused).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const inEditor = (e.target as HTMLElement).closest?.(".monaco-editor")
+      const action = {
+        Enter: inEditor ? undefined : () => executeRef.current(),
+        ".": stop,
+        k: () => setPaletteOpen((o) => !o),
+        "\\": () => toggle(rightPane.current),
+      }[e.key]
+      if (!action) return
+      e.preventDefault()
+      action()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [rightPane])
+
+  const running = state.status === "running"
+  const docRuns = useLiveQuery(
+    () => db.runs.where("lessonId").equals(key).reverse().sortBy("createdAt"),
+    [key],
+    []
+  )
+
+  const tryCode = (c: string) => {
+    edit(c)
+    setMobileTab("code")
+    toast("Loaded into the editor", { description: "Press ⌘↵ to run it." })
+  }
+
+  const editor = (
+    <div className="flex h-full flex-col">
+      <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-3">
+        <span className="mr-auto flex h-full items-center gap-1.5 border-b-2 border-primary px-1 pt-0.5 font-mono text-xs text-foreground">
+          <FileCode2Icon className="size-3.5 text-link" />
+          main.py
+        </span>
+        <Tip label="Reset to starter code">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Reset code"
+            onClick={() => {
+              edit(starter)
+              reset()
+            }}
+          >
+            <RotateCcwIcon />
+          </Button>
+        </Tip>
+        {doc.solution && (
+          <Tip label="Show solution">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Show solution"
+              onClick={() => edit(doc.solution!)}
+            >
+              <LightbulbIcon />
+            </Button>
+          </Tip>
+        )}
+        {doc.check && (
+          <Tip label="Run and check the challenge">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={running}
+              onClick={() => execute(true)}
+            >
+              <FlaskConicalIcon data-icon="inline-start" />
+              Check
+            </Button>
+          </Tip>
+        )}
+        {running ? (
+          <Tip label="Stop" keys={["⌘", "."]}>
+            <Button size="sm" variant="secondary" onClick={stop}>
+              <SquareIcon data-icon="inline-start" />
+              Stop
+            </Button>
+          </Tip>
+        ) : (
+          <Tip label="Run" keys={["⌘", "↵"]}>
+            <Button size="sm" onClick={() => execute()}>
+              <PlayIcon data-icon="inline-start" />
+              Run
+            </Button>
+          </Tip>
+        )}
+      </div>
+      <div className="min-h-0 flex-1">
+        <CodeEditor
+          value={code}
+          onChange={edit}
+          onRun={() => executeRef.current()}
+          errorLine={state.status === "error" ? state.errorLine : undefined}
+          highlightLine={
+            picked?.runKey === state.runKey ? picked.line : undefined
+          }
+        />
+      </div>
+    </div>
+  )
+
+  const right = (
+    <Tabs
+      value={tab}
+      onValueChange={setTab}
+      className="flex h-full flex-col gap-0 bg-sidebar"
+    >
+      <div className="flex h-11 shrink-0 items-center border-b px-3">
+        <TabsList variant="line">
+          <TabsTrigger value="output">
+            Output
+            {running && <Spinner />}
+          </TabsTrigger>
+          <TabsTrigger value="inspect">Inspect</TabsTrigger>
+          <TabsTrigger value="history">
+            History{docRuns.length ? ` (${docRuns.length})` : ""}
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="output" className="min-h-0">
+        <OutputPane state={state} />
+      </TabsContent>
+      <TabsContent value="inspect" className="min-h-0 overflow-auto">
+        <InspectPane
+          state={state}
+          onPickLine={(line) => {
+            setPicked({ line, runKey: state.runKey })
+            setMobileTab("code")
+          }}
+        />
+      </TabsContent>
+      <TabsContent value="history" className="min-h-0 overflow-auto">
+        {docRuns.length ? (
+          <HistoryList runs={docRuns} activeId={runId} showLesson={false} />
+        ) : (
+          <Empty className="h-full">
+            <EmptyHeader>
+              <EmptyTitle>No runs yet</EmptyTitle>
+              <EmptyDescription>
+                Every run on this page is saved here automatically.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </TabsContent>
+    </Tabs>
+  )
+
+  const reading = (
+    <div key={route + param} className="h-full overflow-auto">
+      {children}
+    </div>
+  )
+
+  return (
+    <WorkspaceContext.Provider value={{ lessons, guide, done, tryCode }}>
+      <SidebarProvider>
+        <AppSidebar
+          current={key}
+          runId={runId}
+          onSearch={() => setPaletteOpen(true)}
+        />
+        <SidebarInset className="h-svh overflow-hidden">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+            <SidebarTrigger />
+            <nav className="flex min-w-0 items-center gap-1.5 text-sm">
+              <span className="hidden truncate text-muted-foreground sm:inline">
+                {doc.section}
+              </span>
+              <span className="hidden text-muted-foreground sm:inline">/</span>
+              <span className="truncate font-medium">{doc.title}</span>
+              {runId && (
+                <span className="shrink-0 text-muted-foreground">
+                  · run #{runId}
+                </span>
+              )}
+            </nav>
+            <div className="ml-auto flex items-center gap-1">
+              {idx >= 0 && (
+                <>
+                  <Tip label="Previous">
+                    {idx === 0 ? (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Previous"
+                        disabled
+                      >
+                        <ChevronLeftIcon />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Previous"
+                        asChild
+                      >
+                        <Link href={docHref(siblings[idx - 1])}>
+                          <ChevronLeftIcon />
+                        </Link>
+                      </Button>
+                    )}
+                  </Tip>
+                  <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+                    {idx + 1} / {siblings.length}
+                  </span>
+                  <Tip label="Next">
+                    {idx === siblings.length - 1 ? (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Next"
+                        disabled
+                      >
+                        <ChevronRightIcon />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Next"
+                        asChild
+                      >
+                        <Link href={docHref(siblings[idx + 1])}>
+                          <ChevronRightIcon />
+                        </Link>
+                      </Button>
+                    )}
+                  </Tip>
+                </>
+              )}
+              {!compact && (
+                <Tip label="Toggle output pane" keys={["⌘", "\\"]}>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Toggle output pane"
+                    onClick={() => toggle(rightPane.current)}
+                  >
+                    <PanelRightIcon />
+                  </Button>
+                </Tip>
+              )}
+            </div>
+          </header>
+
+          {compact ? (
+            <Tabs
+              value={mobileTab}
+              onValueChange={setMobileTab}
+              className="min-h-0 flex-1 gap-0"
+            >
+              <TabsList variant="line" className="w-full border-b px-3">
+                <TabsTrigger value="read">Read</TabsTrigger>
+                <TabsTrigger value="code">Code</TabsTrigger>
+                <TabsTrigger value="output">Output</TabsTrigger>
+              </TabsList>
+              <TabsContent value="read" className="min-h-0">
+                {reading}
+              </TabsContent>
+              <TabsContent value="code" className="min-h-0">
+                {editor}
+              </TabsContent>
+              <TabsContent value="output" className="min-h-0">
+                {right}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <ResizablePanelGroup
+              orientation="horizontal"
+              className="min-h-0 flex-1"
+            >
+              <ResizablePanel minSize="35">
+                <ResizablePanelGroup orientation="vertical">
+                  <ResizablePanel defaultSize="55" minSize="15">
+                    {reading}
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize="45" minSize="20">
+                    {editor}
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+              </ResizablePanel>
+              <ResizableHandle />
+              <ResizablePanel
+                panelRef={rightPane}
+                defaultSize="34"
+                minSize="22"
+                collapsible
+              >
+                {right}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
+        </SidebarInset>
+        <CommandMenu open={paletteOpen} onOpenChange={setPaletteOpen} />
+      </SidebarProvider>
+    </WorkspaceContext.Provider>
+  )
+}
