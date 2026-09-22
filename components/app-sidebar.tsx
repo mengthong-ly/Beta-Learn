@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   CodeIcon,
   SearchIcon,
+  MonitorCogIcon,
 } from "lucide-react"
 
 import { AppearanceMenu } from "@/components/appearance-menu"
@@ -239,6 +240,16 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link href="/setup">
+                <MonitorCogIcon />
+                <span>Setup</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <AppearanceMenu />
       </SidebarFooter>
       <SidebarRail />

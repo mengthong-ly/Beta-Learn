@@ -148,3 +148,15 @@ Laravel Bootcamp / Learn: laravel.com/learn exists and wasn't explored (**UNVERI
 **Recommendation:** the transpile-plus-iframe option, reusing the TS 6 transpiler. React follows TypeScript.
 
 **Sources:** https://react.dev/llms.txt · https://react.dev/versions · https://esbuild.github.io/api/#running-in-the-browser · https://sandpack.codesandbox.io/docs/advanced-usage/bundlers · npm registry `react`, `esbuild-wasm`, `@codesandbox/sandpack-react`
+
+## Claude Code (extra course)
+
+**Scope:** Claude Code basics, Agent Skills, tool use, MCP and agentic workflows. Listed under "Extra courses" on Home, apart from the language courses.
+
+**Runtime:** the local TypeScript runner (TS 7.0.2 sandbox in `runtimes/typescript`). The sandbox also has `@modelcontextprotocol/sdk` 1.30.0 and `zod` 4.6.5, so MCP lessons run a real server and client in-process over `InMemoryTransport`. Anything that needs an API key or network (Messages API, Agent SDK, stdio and remote servers) appears as `typescript-snippet`, and challenges use a scripted fake model.
+
+**Sources:**
+- Claude Code: https://code.claude.com/docs (index https://code.claude.com/docs/llms.txt)
+- Claude API, tool use, Agent Skills, MCP connector, evals: https://platform.claude.com/docs/en/home (index https://platform.claude.com/llms.txt)
+- MCP: https://modelcontextprotocol.io and the TypeScript SDK (v1.x branch)
+- Workflow patterns: https://www.anthropic.com/engineering/building-effective-agents
