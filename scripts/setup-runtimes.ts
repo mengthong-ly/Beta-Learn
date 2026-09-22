@@ -1,6 +1,6 @@
 // Creates the local toolchain sandboxes the local runner uses (see docs/adr/0001-local-runner.md).
 // Usage: npm run setup:runtimes   (safe to re-run: existing sandboxes are kept)
-//   runtimes/typescript  TypeScript 7 (tsc)            npm
+//   runtimes/typescript  TypeScript 7 (tsc), MCP SDK   npm (the Claude Code course shares it)
 //   runtimes/laravel     a Laravel 13 app              composer
 //   runtimes/flutter     a Flutter web app             flutter
 // Dart and PHP need nothing but the dart and php commands on your PATH.
@@ -17,12 +17,11 @@ function sh(cmd: string, args: string[], cwd = RUNTIMES) {
 }
 
 const ts = path.join(RUNTIMES, "typescript")
-if (!existsSync(path.join(ts, "node_modules/.bin/tsc"))) {
+// Re-installs when the MCP SDK is missing, so sandboxes made before the Claude Code course catch up.
+if (!existsSync(path.join(ts, "node_modules/@modelcontextprotocol/sdk"))) {
   mkdirSync(ts, { recursive: true })
-  writeFileSync(
-    path.join(ts, "package.json"),
-    JSON.stringify({ private: true, dependencies: { typescript: "7.0.2" } }, null, 2) + "\n"
-  )
+  const dependencies = { typescript: "7.0.2", "@modelcontextprotocol/sdk": "1.30.0", zod: "4.6.5" }
+  writeFileSync(path.join(ts, "package.json"), JSON.stringify({ private: true, dependencies }, null, 2) + "\n")
   sh("npm", ["install", "--no-audit", "--no-fund"], ts)
 }
 

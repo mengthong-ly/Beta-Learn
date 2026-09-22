@@ -3,7 +3,7 @@
 // Node stdlib only, no path aliases, erasable TypeScript only: Node runs this file directly.
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
@@ -24,6 +24,7 @@ export const LOCAL_COURSES = [
   "typescript",
   "dart",
   "flutter",
+  "claude-code",
 ] as const
 export type LocalCourse = (typeof LOCAL_COURSES)[number]
 
@@ -42,11 +43,12 @@ const TIMEOUT: Record<LocalCourse, number> = {
   typescript: 20_000,
   dart: 30_000,
   flutter: 300_000,
+  "claude-code": 20_000,
 }
 
 type Proc = { code: number | null; stdout: string; stderr: string; timedOut: boolean }
 
-function runProcess(
+export function runProcess(
   cmd: string,
   args: string[],
   opts: { cwd: string; timeout: number; env?: Record<string, string>; signal?: AbortSignal }
@@ -220,6 +222,8 @@ async function runTypeScript(code: string, check: string | undefined, signal?: A
   return withTemp(async (dir) => {
     await writeFile(path.join(dir, "main.ts"), code)
     await writeFile(path.join(dir, "package.json"), '{ "type": "module" }\n')
+    // Lessons can import the sandbox's packages (the Claude Code course uses @modelcontextprotocol/sdk and zod).
+    await symlink(path.join(RUNTIMES, "typescript/node_modules"), path.join(dir, "node_modules"), "dir")
     const files = ["main.ts"]
     if (check) {
       await writeFile(path.join(dir, "check.ts"), TS_CHECK(check))
@@ -307,7 +311,7 @@ async function runDart(code: string, check: string | undefined, signal?: AbortSi
 
 // --- Flutter: one shared project, so one run at a time. ---
 let flutterQueue: Promise<unknown> = Promise.resolve()
-function serially<T>(fn: () => Promise<T>): Promise<T> {
+export function serially<T>(fn: () => Promise<T>): Promise<T> {
   const next = flutterQueue.then(fn, fn)
   flutterQueue = next.catch(() => undefined)
   return next
@@ -389,6 +393,7 @@ export function runLocal(
     case "laravel":
       return runPhp(course, code, check, opts.signal)
     case "typescript":
+    case "claude-code":
       return runTypeScript(code, check, opts.signal)
     case "dart":
       return runDart(code, check, opts.signal)

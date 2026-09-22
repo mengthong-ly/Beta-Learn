@@ -85,7 +85,23 @@ export const courses = [
     comment: "//",
     hello: "import 'package:flutter/material.dart';\n\nvoid main() {\n  runApp(\n    const MaterialApp(\n      home: Scaffold(body: Center(child: Text('Hello, Flutter!'))),\n    ),\n  );\n}\n",
   },
+  {
+    // extra: listed apart from the language courses on Home and in the course switcher.
+    id: "claude-code",
+    name: "Claude Code",
+    mark: "Cc",
+    tagline: "Skills, MCP servers and agentic workflows, practised in TypeScript.",
+    runtime: "local",
+    lang: "typescript",
+    file: "main.ts",
+    comment: "//",
+    hello: 'import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"\n\nconst server = new McpServer({ name: "hello", version: "1.0.0" })\nconsole.log("Hello, MCP!", server.isConnected())\n',
+    extra: true,
+  },
 ] as const
+
+/** Is this one of the extra (non-language) courses? */
+export const isExtra = (c: Course) => "extra" in c && c.extra
 
 export type Course = (typeof courses)[number]
 export type CourseId = Course["id"]

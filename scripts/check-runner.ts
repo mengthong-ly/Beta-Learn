@@ -2,6 +2,12 @@
 // Usage: npm run check:runner   (needs npm run setup:runtimes first)
 import assert from "node:assert/strict"
 import { runLocal, type LocalResult } from "../lib/local-runner.ts"
+import { atLeast } from "../lib/runner-status.ts"
+
+// Version gate used by the /setup page
+assert.ok(atLeast("PHP 8.5.0", "8.5") && atLeast("v23.7.0", "20.9") && atLeast("Version 7.0.2", "7", "8"))
+assert.ok(!atLeast("8.2.9", "8.3") && !atLeast("8.6.0", "8.3", "8.6") && !atLeast(undefined, "1") && !atLeast("Flutter 3.9.1", "3.47"))
+console.log("✓ atLeast")
 
 const t = async (name: string, p: Promise<LocalResult>, f: (r: LocalResult) => void) => {
   const r = await p

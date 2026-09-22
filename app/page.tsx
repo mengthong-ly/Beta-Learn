@@ -1,6 +1,29 @@
+import Link from "next/link"
+import { MonitorCogIcon } from "lucide-react"
+
 import { CourseCard } from "@/components/course-card"
 import { getCourse } from "@/lib/content"
-import { courses } from "@/lib/courses"
+import { Separator } from "@/components/ui/separator"
+import { courses, isExtra, type Course } from "@/lib/courses"
+
+function CourseGrid({ list }: { list: Course[] }) {
+  return (
+    <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+      {list.map((c) => {
+        const { lessons, guide } = getCourse(c.id)!
+        return (
+          <li key={c.id}>
+            <CourseCard
+              course={c}
+              lessonIds={lessons.map((l) => l.id)}
+              guideCount={guide.length}
+            />
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 export default function Home() {
   return (
@@ -10,6 +33,12 @@ export default function Home() {
           Th
         </span>
         <span className="font-semibold">ThongLearn</span>
+        <Link
+          href="/setup"
+          className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <MonitorCogIcon className="size-4" /> Setup
+        </Link>
       </header>
       <h1 className="mt-12 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
         Pick a course
@@ -18,20 +47,14 @@ export default function Home() {
         Each course has its own lessons, guide book and playground. Your
         progress is saved in this browser.
       </p>
-      <ul className="mt-8 grid gap-4 sm:grid-cols-2">
-        {courses.map((c) => {
-          const { lessons, guide } = getCourse(c.id)!
-          return (
-            <li key={c.id}>
-              <CourseCard
-                course={c}
-                lessonIds={lessons.map((l) => l.id)}
-                guideCount={guide.length}
-              />
-            </li>
-          )
-        })}
-      </ul>
+      <CourseGrid list={courses.filter((c) => !isExtra(c))} />
+      <div className="mt-12 flex items-center gap-3">
+        <h2 className="shrink-0 text-sm font-medium text-muted-foreground">
+          Extra courses
+        </h2>
+        <Separator className="flex-1" />
+      </div>
+      <CourseGrid list={courses.filter(isExtra)} />
     </main>
   )
 }
