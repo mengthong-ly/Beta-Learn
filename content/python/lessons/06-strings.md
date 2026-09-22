@@ -61,3 +61,53 @@ lines = __stdout__.splitlines()
 assert lines[:1] == ["Python Is Fun"], "Line 1 should be 'Python Is Fun' (try .strip() and .title())"
 assert lines[1:2] == ["3"], "Line 2 should be the word count: 3"
 ```
+
+```quiz
+? easy: What does this print?
+~~~python
+s = "Python"
+print(len(s))
+~~~
++ 6
+- 5
+- 7
+- Error
+> "Python" has 6 characters, so len(s) is 6.
+? easy: Strings in Python are:
++ Immutable — methods return a new string
+- Mutable — methods change the string in place
+- Only mutable if triple-quoted
+- Converted to a list automatically
+> Every string method returns a brand new string; the original is never changed in place.
+? medium: What does this print?
+~~~python
+s = "Python"
+print(s + "!" * 3)
+~~~
++ Python!!!
+- Python!Python!Python!
+- (Python!)3
+- Error
+> `*` binds tighter than `+`, so `"!" * 3` becomes `"!!!"` first, then it's concatenated onto s.
+? medium: What does this print?
+~~~python
+s = "Hello, World"
+print(s.replace("World", "Python"))
+print(s)
+~~~
++ Hello, Python\nHello, World
+- Hello, Python\nHello, Python
+- Hello, World\nHello, World
+- Error
+> replace() returns a new string; s itself never changes, because strings are immutable.
+? hard: What does this print?
+~~~python
+words = "a-b-c".split("-")
+print("+".join(words))
+~~~
++ a+b+c
+- a-b-c
+- ['a', 'b', 'c']
+- Error
+> split("-") turns "a-b-c" into ["a", "b", "c"], and join() glues them back together with "+" between each.
+```

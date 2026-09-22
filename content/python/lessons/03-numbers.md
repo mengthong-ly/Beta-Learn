@@ -67,3 +67,54 @@ print(slices // people, slices % people)
 ```python check
 assert __stdout__.strip() == "3 2", "Expected '3 2': use // and %"
 ```
+
+```quiz
+? easy: What does this print?
+~~~python
+print(7 // 2, 7 % 2)
+~~~
++ 3 1
+- 3.5 1
+- 3 3.5
+- 4 1
+> `//` floors the division to 3, and `%` gives the remainder, 1.
+? easy: Which operator always returns a float, even with two integers?
++ `/`
+- `//`
+- `%`
+- `**`
+> True division (`/`) always produces a float in Python 3; `//` gives an int when both operands are ints.
+? medium: What does this print?
+~~~python
+count = 10
+count += 5
+count *= 2
+print(count)
+~~~
++ 30
+- 15
+- 20
+- 25
+> `count += 5` makes it 15, then `count *= 2` makes it 30.
+? medium: Why does `print(0.1 + 0.2)` show `0.30000000000000004` instead of `0.3`?
++ Floats are stored as binary approximations, and 0.1 and 0.2 can't be represented exactly
+- Python has a bug in addition
+- 0.1 and 0.2 are treated as strings
+- round() wasn't used, so Python guesses the digits
+> Most decimal fractions can't be represented exactly in binary floating point, so tiny rounding errors show up.
+? hard: What does this print?
+~~~python
+print(-7 // 2)
+~~~
++ -4
+- -3
+- -3.5
+- 4
+> Floor division rounds toward negative infinity, not toward zero, so -3.5 floors to -4.
+? hard: What is `2 ** 100` in Python, compared to many other languages?
++ An exact integer with no overflow, since Python ints have arbitrary precision
+- A float, because it's too large for an int
+- An OverflowError
+- Silently wrapped to a smaller number
+> Python ints grow as large as needed; there's no fixed-size overflow like in C or Java.
+```
