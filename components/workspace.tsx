@@ -12,18 +12,24 @@ import {
   FileCode2Icon,
   FlaskConicalIcon,
   LightbulbIcon,
+  PanelBottomIcon,
   PanelRightIcon,
   PlayIcon,
   RotateCcwIcon,
   SquareIcon,
 } from "lucide-react"
-import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels"
+import {
+  usePanelRef,
+  type Layout,
+  type PanelImperativeHandle,
+} from "react-resizable-panels"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { celebrate, Celebrations } from "@/components/celebrate"
 import { CommandMenu } from "@/components/command-menu"
 import { HistoryList } from "@/components/history-list"
 import { InspectPane } from "@/components/inspect-pane"
+import { Mascot } from "@/components/mascot"
 import { OutputPane } from "@/components/output-pane"
 import { PreviewPane } from "@/components/preview-pane"
 import { Button } from "@/components/ui/button"
@@ -105,9 +111,28 @@ function Tip({
   )
 }
 
-function toggle(p: PanelImperativeHandle | null) {
-  if (p?.isCollapsed()) p.expand()
-  else p?.collapse()
+let animTimer: ReturnType<typeof setTimeout> | undefined
+/**
+ * Opens or closes a collapsible pane (toggles when `open` is omitted). `data-animating`
+ * turns on the flex-grow transition in globals.css just for this, so dragging stays 1:1.
+ */
+function setOpen(
+  group: HTMLDivElement | null,
+  p: PanelImperativeHandle | null,
+  open = p?.isCollapsed()
+) {
+  if (!p || open !== p.isCollapsed()) return
+  if (group) {
+    group.dataset.animating = ""
+    clearTimeout(animTimer)
+    animTimer = setTimeout(() => delete group.dataset.animating, 300)
+  }
+  if (open) p.expand()
+  else p.collapse()
+}
+
+const saveLayout = (name: string) => (layout: Layout) => {
+  document.cookie = `${name}=${encodeURIComponent(JSON.stringify(layout))}; path=/; max-age=31536000; SameSite=Lax`
 }
 
 /**
@@ -118,11 +143,15 @@ export function Workspace({
   course,
   lessons,
   guide,
+  sidebarOpen,
+  layout,
   children,
 }: {
   course: string
   lessons: Lesson[]
   guide: Lesson[]
+  sidebarOpen: boolean
+  layout: { outer?: Layout; inner?: Layout }
   children: React.ReactNode
 }) {
   const router = useRouter()
@@ -180,6 +209,8 @@ export function Workspace({
   // Replays the editor glow: `n` remounts the overlay, `kind` picks the strength.
   const [glow, setGlow] = useState<{ n: number; kind: "ok" | "pass" }>()
   const rightPane = usePanelRef()
+  const editorPane = usePanelRef()
+  const panes = useRef<HTMLDivElement>(null)
   // Below 1024px three panes get too cramped, so switch to tabs.
   const compact = useMediaQuery("(max-width: 1023px)")
 
@@ -219,7 +250,7 @@ export function Workspace({
   }
 
   const execute = async (withCheck = false) => {
-    if (rightPane.current?.isCollapsed()) rightPane.current.expand()
+    setOpen(panes.current, rightPane.current, true)
     setTab(preview && !(withCheck && c.id === "flutter") ? "preview" : "output")
     setMobileTab("output")
     const res = await run(code, withCheck ? doc.check : undefined, c)
@@ -283,7 +314,8 @@ export function Workspace({
         Enter: inEditor ? undefined : () => executeRef.current(),
         ".": stop,
         k: () => setPaletteOpen((o) => !o),
-        "\\": () => toggle(rightPane.current),
+        "\\": () => setOpen(panes.current, rightPane.current),
+        j: () => setOpen(panes.current, editorPane.current),
       }[e.key]
       if (!action) return
       e.preventDefault()
@@ -291,7 +323,7 @@ export function Workspace({
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [rightPane])
+  }, [rightPane, editorPane])
 
   const running = state.status === "running"
   const docRuns = useLiveQuery(
@@ -303,6 +335,7 @@ export function Workspace({
 
   const tryCode = (c: string) => {
     edit(c)
+    setOpen(panes.current, editorPane.current, true)
     setMobileTab("code")
     toast("Loaded into the editor", { description: "Press ⌘↵ to run it." })
   }
@@ -431,6 +464,7 @@ export function Workspace({
           state={state}
           onPickLine={(line) => {
             setPicked({ line, runKey: state.runKey })
+            setOpen(panes.current, editorPane.current, true)
             setMobileTab("code")
           }}
         />
@@ -453,8 +487,11 @@ export function Workspace({
   )
 
   const reading = (
-    <div key={route + param} className="h-full overflow-auto">
-      {children}
+    <div className="relative h-full overflow-hidden">
+      <div key={route + param} className="h-full overflow-auto">
+        {children}
+      </div>
+      <Mascot />
     </div>
   )
 
@@ -462,7 +499,7 @@ export function Workspace({
     <WorkspaceContext.Provider
       value={{ course, lessons, guide, done, tryCode }}
     >
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar
           current={key}
           runId={runId}
@@ -538,16 +575,28 @@ export function Workspace({
                 </>
               )}
               {!compact && (
-                <Tip label="Toggle output pane" keys={["⌘", "\\"]}>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Toggle output pane"
-                    onClick={() => toggle(rightPane.current)}
-                  >
-                    <PanelRightIcon />
-                  </Button>
-                </Tip>
+                <>
+                  <Tip label="Toggle code editor" keys={["⌘", "J"]}>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label="Toggle code editor"
+                      onClick={() => setOpen(panes.current, editorPane.current)}
+                    >
+                      <PanelBottomIcon />
+                    </Button>
+                  </Tip>
+                  <Tip label="Toggle output pane" keys={["⌘", "\\"]}>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label="Toggle output pane"
+                      onClick={() => setOpen(panes.current, rightPane.current)}
+                    >
+                      <PanelRightIcon />
+                    </Button>
+                  </Tip>
+                </>
               )}
             </div>
           </header>
@@ -575,24 +624,40 @@ export function Workspace({
             </Tabs>
           ) : (
             <ResizablePanelGroup
+              elementRef={panes}
               orientation="horizontal"
               className="min-h-0 flex-1"
+              defaultLayout={layout.outer}
+              onLayoutChanged={saveLayout("panes-outer")}
             >
-              <ResizablePanel minSize="35">
-                <ResizablePanelGroup orientation="vertical">
-                  <ResizablePanel defaultSize="55" minSize="15">
+              <ResizablePanel id="main" minSize="35">
+                <ResizablePanelGroup
+                  orientation="vertical"
+                  defaultLayout={layout.inner}
+                  onLayoutChanged={saveLayout("panes-inner")}
+                >
+                  <ResizablePanel id="reading" defaultSize="55" minSize="15">
                     {reading}
                   </ResizablePanel>
                   <ResizableHandle withHandle />
-                  <ResizablePanel defaultSize="45" minSize="20">
+                  <ResizablePanel
+                    id="editor"
+                    panelRef={editorPane}
+                    // The saved size, not just the default: the library's server render skips a
+                    // saved 0, so a closed pane would flash open until hydration.
+                    defaultSize={String(layout.inner?.editor ?? 45)}
+                    minSize="20"
+                    collapsible
+                  >
                     {editor}
                   </ResizablePanel>
                 </ResizablePanelGroup>
               </ResizablePanel>
               <ResizableHandle />
               <ResizablePanel
+                id="output"
                 panelRef={rightPane}
-                defaultSize="34"
+                defaultSize={String(layout.outer?.output ?? 34)}
                 minSize="22"
                 collapsible
               >

@@ -43,6 +43,10 @@ self.onmessage = async ({ data }) => {
   ns.set("__src__", data.code)
   const t0 = performance.now()
   let inspect
+  // The batched handlers only see a line once it ends in "\n" or the fd is fsync'd (flush() alone isn't enough), so
+  // print("x", end="!") would sit in the buffer until some later run.
+  const flush = () =>
+    py.runPython("import os, sys\nfor f in (sys.stdout, sys.stderr): f.flush(); os.fsync(f.fileno())")
   const collect = () => {
     try {
       inspect = JSON.parse(py.globals.get("__inspect__")(ns, ns.get("__code__")))
@@ -63,6 +67,7 @@ self.onmessage = async ({ data }) => {
     postMessage({ type: "phase", phase: "running" })
     py.runPython("exec(__code__, globals())", { globals: ns, filename: "<thonglearn>" })
   } catch (e) {
+    flush()
     const { text, line } = cleanTraceback(String(e.message))
     const ms = performance.now() - t0
     collect()
@@ -70,6 +75,7 @@ self.onmessage = async ({ data }) => {
     ns.destroy()
     return
   }
+  flush()
   const ms = performance.now() - t0
   collect()
 

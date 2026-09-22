@@ -6,6 +6,8 @@ import Markdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
   BookMarkedIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
   CheckCircle2Icon,
   ChevronRightIcon,
   PlayIcon,
@@ -72,6 +74,50 @@ function BehindTheScenes({ children }: { children: React.ReactNode }) {
         {rest}
       </CollapsibleContent>
     </Collapsible>
+  )
+}
+
+/** Previous / next links at the foot of a lesson or guide chapter. */
+function Pager({ doc }: { doc: Lesson }) {
+  const { course, lessons, guide } = useWorkspace()
+  const list = doc.kind === "lesson" ? lessons : doc.id === "guide" ? [] : guide
+  const i = list.indexOf(doc)
+  if (i < 0) return null
+  const links = [
+    { d: list[i - 1], label: "Previous", Icon: ArrowLeftIcon },
+    { d: list[i + 1], label: "Next", Icon: ArrowRightIcon },
+  ]
+  return (
+    <nav
+      aria-label="Lesson navigation"
+      className="mt-12 grid gap-3 border-t pt-6 sm:grid-cols-2"
+    >
+      {links.map(({ d, label, Icon }) =>
+        d ? (
+          <Link
+            key={label}
+            href={docHref(d, course)}
+            className={cn(
+              "group flex flex-col gap-1 rounded-lg border px-4 py-3 transition-[background-color,transform] duration-150 ease-out hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.98]",
+              label === "Next" && "items-end text-right sm:col-start-2"
+            )}
+          >
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {label === "Previous" && (
+                <Icon className="size-3.5 transition-transform duration-150 ease-out group-hover:-translate-x-0.5" />
+              )}
+              {label}
+              {label === "Next" && (
+                <Icon className="size-3.5 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
+              )}
+            </span>
+            <span className="text-base font-medium text-foreground">
+              {d.title}
+            </span>
+          </Link>
+        ) : null
+      )}
+    </nav>
   )
 }
 
@@ -272,6 +318,7 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
           storeKey={storageKey(course, doc.id)}
         />
       ) : null}
+      <Pager doc={doc} />
     </article>
   )
 }
