@@ -27,6 +27,16 @@ export function CourseCard({
     keys.includes(`${course.id}/${id}`)
   ).length
   const pct = Math.round((done / lessonIds.length) * 100)
+  const quizzesPassed = useLiveQuery(
+    () =>
+      db.quizzes
+        .where("key")
+        .startsWith(`${course.id}/`)
+        .filter((q) => !!q.passedAt)
+        .count(),
+    [course.id],
+    0
+  )
 
   return (
     <Link
@@ -62,6 +72,8 @@ export function CourseCard({
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground tabular-nums">
             {done}/{lessonIds.length} done
+            {quizzesPassed > 0 &&
+              ` · ${quizzesPassed} ${quizzesPassed === 1 ? "quiz" : "quizzes"} passed`}
           </span>
           <span className="flex items-center gap-1 font-medium">
             {done ? "Continue" : "Start"}

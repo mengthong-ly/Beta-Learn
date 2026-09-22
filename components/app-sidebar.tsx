@@ -17,6 +17,8 @@ import {
 import { AppearanceMenu } from "@/components/appearance-menu"
 import { CourseSwitcher } from "@/components/course-switcher"
 import { HistoryList } from "@/components/history-list"
+import { ProgressRing } from "@/components/progress-ring"
+import { StatsBadge } from "@/components/stats-badge"
 import {
   Collapsible,
   CollapsibleContent,
@@ -87,7 +89,10 @@ export function AppSidebar({
   // Sections open/close freely, but the current doc's section always opens.
   const currentSection = guideOpen
     ? "Guide Book"
-    : sections.find((s) => s.lessons.some((l) => l.id === current))?.name
+    : sections.find(
+        (s) =>
+          s.lessons.some((l) => l.id === current) || current === `quiz:${s.id}`
+      )?.name
   const [open, setOpen] = useState<string[]>([])
   const [seen, setSeen] = useState<string>()
   if (currentSection !== seen) {
@@ -102,6 +107,7 @@ export function AppSidebar({
     <Sidebar>
       <SidebarHeader>
         <CourseSwitcher course={course} />
+        <StatsBadge />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={onSearch}>
@@ -155,7 +161,10 @@ export function AppSidebar({
                           count === s.lessons.length && "text-success"
                         )}
                       >
-                        {count}/{s.lessons.length}
+                        <span className="flex items-center gap-1.5">
+                          <ProgressRing value={count} max={s.lessons.length} />
+                          {count}/{s.lessons.length}
+                        </span>
                       </SidebarMenuBadge>
                       <CollapsibleContent>
                         <SidebarMenuSub>
