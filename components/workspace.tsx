@@ -165,6 +165,8 @@ export function Workspace({
   const [mobileTab, setMobileTab] = useState("read")
   // A line picked in the Inspect tab; cleared whenever a new run starts.
   const [picked, setPicked] = useState<{ line: number; runKey: number }>()
+  // Replays the editor glow: `n` remounts the overlay, `kind` picks the strength.
+  const [glow, setGlow] = useState<{ n: number; kind: "ok" | "pass" }>()
   const rightPane = usePanelRef()
   // Below 1024px three panes get too cramped, so switch to tabs.
   const compact = useMediaQuery("(max-width: 1023px)")
@@ -210,6 +212,8 @@ export function Workspace({
     setMobileTab("output")
     const res = await run(code, withCheck ? doc.check : undefined, c)
     if (res.error) setTab("output")
+    if (res.status === "done" && res.check?.pass !== false)
+      setGlow((g) => ({ n: (g?.n ?? 0) + 1, kind: res.check?.pass ? "pass" : "ok" }))
     await db.runs.add({
       lessonId: saveKey,
       createdAt: Date.now(),
@@ -338,7 +342,8 @@ export function Workspace({
           </Tip>
         )}
       </div>
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        {glow && <div key={glow.n} data-glow={glow.kind} className="run-glow" aria-hidden />}
         <CodeEditor
           value={code}
           language={c.lang}
