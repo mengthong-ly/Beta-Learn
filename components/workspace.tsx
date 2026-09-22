@@ -58,6 +58,8 @@ import {
   findDoc,
   guideIndex,
   quizDoc,
+  quizHref,
+  sections,
   storageKey,
 } from "@/lib/docs"
 import { useMediaQuery } from "@/hooks/use-mobile"
@@ -241,19 +243,29 @@ export function Workspace({
     } as never)
     if (res.check?.pass && !done.includes(key)) {
       await db.progress.put({ lessonId: saveKey, completedAt: Date.now() })
-      celebrate()
+      const finished = [...done, key]
       const next = lessons[lessons.indexOf(doc) + 1]
-      toast.success(`${doc.title} complete!`, {
-        description: next
-          ? `Up next: ${next.title}`
-          : "You finished the whole course 🎉",
-        action: next
-          ? {
-              label: "Next lesson",
-              onClick: () => router.push(docHref(next, course)),
-            }
-          : undefined,
-      })
+      const sec = sections(lessons).find((s) => s.lessons.includes(doc))
+      const sectionDone = sec?.lessons.every((l) => finished.includes(l.id)) ?? false
+      const courseDone = lessons.every((l) => finished.includes(l.id))
+      const quizzes = lessons.some((l) => l.quiz?.length)
+      const go = (label: string, href: string) => ({ label, onClick: () => router.push(href) })
+      celebrate(sectionDone)
+      if (courseDone)
+        toast.success(`You finished ${c.name}! 🎉`, {
+          description: quizzes ? "Prove it with the final exam." : "Every lesson done.",
+          action: quizzes ? go("Final exam", quizHref(course, "final")) : undefined,
+        })
+      else if (sec && sectionDone && sec.lessons.some((l) => l.quiz?.length))
+        toast.success(`Section complete: ${sec.name}`, {
+          description: "Lock it in with the section quiz.",
+          action: go("Section quiz", quizHref(course, sec.id)),
+        })
+      else
+        toast.success(sec && sectionDone ? `Section complete: ${sec.name}` : `${doc.title} complete!`, {
+          description: next ? `Up next: ${next.title}` : undefined,
+          action: next ? go("Next lesson", docHref(next, course)) : undefined,
+        })
     }
   }
 
