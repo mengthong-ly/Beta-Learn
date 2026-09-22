@@ -13,10 +13,14 @@ const RAYS = [
   [90, 260, 0.14, 2.2],
 ] as const
 
+// Page-load entrance (tw-animate-css): fade, rise and unblur, staggered with delay-*.
+const ENTER =
+  "animate-in fade-in slide-in-from-bottom-4 blur-in-sm fill-mode-both duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none"
+
 export default function Landing() {
   return (
     <main className="dark relative isolate flex min-h-svh flex-col overflow-hidden bg-[#08080a] text-foreground">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+      <div aria-hidden className="animate-in fade-in fill-mode-both duration-[2000ms] ease-out motion-reduce:animate-none pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-40 right-[-10%] size-[60rem] rounded-full bg-white/[0.04] blur-3xl" />
         {RAYS.map(([left, width, opacity, delay]) => (
           <span
@@ -28,7 +32,7 @@ export default function Landing() {
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#08080a] to-transparent" />
       </div>
 
-      <header className="mx-auto flex w-full max-w-6xl items-center gap-6 px-4 py-5 sm:px-8">
+      <header className="animate-in fade-in fill-mode-both duration-1000 ease-out motion-reduce:animate-none mx-auto flex w-full max-w-6xl items-center gap-6 px-4 py-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <span className="flex size-7 items-center justify-center rounded-md bg-foreground font-mono text-xs font-bold text-background">
             Th
@@ -49,19 +53,19 @@ export default function Landing() {
       </header>
 
       <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-4 py-10 text-center">
-        <span className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
+        <span className={`${ENTER} delay-100 flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-muted-foreground backdrop-blur`}>
           <SparklesIcon className="size-3.5" />
           Python runs right in your browser
         </span>
-        <h1 className="mt-6 text-4xl font-medium tracking-tight text-balance sm:text-6xl lg:text-7xl">
+        <h1 className={`${ENTER} delay-200 mt-6 text-4xl font-medium tracking-tight text-balance sm:text-6xl lg:text-7xl`}>
           Learn to code by running real code
         </h1>
-        <p className="mt-5 max-w-xl text-base text-pretty text-muted-foreground sm:text-lg">
+        <p className={`${ENTER} delay-300 mt-5 max-w-xl text-base text-pretty text-muted-foreground sm:text-lg`}>
           Short lessons, a guide book and a live editor for Python, PHP,
           TypeScript, React, Flutter and more. Your progress stays in this
           browser.
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div className={`${ENTER} delay-400 mt-8 flex flex-wrap justify-center gap-3`}>
           <Button asChild size="lg" className="rounded-full bg-white text-black hover:bg-white/90">
             <Link href="/courses">
               Start learning <ArrowRightIcon />
@@ -73,7 +77,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="border-t border-white/10">
+      <footer className="animate-in fade-in fill-mode-both duration-1000 ease-out delay-500 motion-reduce:animate-none border-t border-white/10">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 py-5 sm:justify-between sm:px-8">
           <span className="hidden font-mono text-sm text-muted-foreground md:block">
             {`/* ${courses.length} courses */`}

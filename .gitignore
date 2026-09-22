@@ -40,3 +40,7 @@ next-env.d.ts
 # local runner sandboxes (npm run setup:runtimes); only our support files are committed
 /runtimes/*
 !/runtimes/_support/
+
+# prisma generated client
+/lib/generated/prisma
+.vercel

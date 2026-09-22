@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     "components/ui/**",
     // Local runner sandboxes (npm run setup:runtimes): generated apps, vendor code, builds.
     "runtimes/**",
+    "lib/generated/**",
   ]),
 ]);
 

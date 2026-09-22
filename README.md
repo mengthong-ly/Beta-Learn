@@ -15,3 +15,17 @@ npm run build && npm start
 - **Datasets**: `public/data/*.csv` are written into Python's working directory before every run. pandas/numpy download from the Pyodide CDN on first import.
 - **History, progress, drafts**: IndexedDB in this browser only.
 - **Design docs**: `.design/thonglearn/`.
+
+## Native apps (iOS and Android)
+
+`ios/` and `android/` are Capacitor 8 apps. They are thin shells that load the running Next.js server from `server.url` in `capacitor.config.ts`, because `/api/run` and server rendering can't be bundled. `native-shell/index.html` is the offline fallback page. Taps on links and buttons give haptic feedback (`components/haptics.tsx`, `@capacitor/haptics`); on the web it falls back to `navigator.vibrate` (Android only).
+
+```bash
+npm run dev                          # the apps load http://localhost:3000 by default
+adb reverse tcp:3000 tcp:3000        # Android only: lets the app reach your Mac
+npx cap sync                         # after changing capacitor.config.ts or plugins
+npx cap open ios                     # or: npx cap open android
+```
+
+- **Release or physical device**: `npm run dev` binds to `127.0.0.1`, so a real phone can't reach it. Set `CAP_SERVER_URL` to the deployed URL (or your Mac's LAN address), then `npx cap sync`.
+- **Known issue**: on iOS the status bar sits on a white strip above dark pages. Fix: add `@capacitor/status-bar` and match its color to the theme.

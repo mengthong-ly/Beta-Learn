@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import "./globals.css"
+import { TapHaptics } from "@/components/haptics"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -32,6 +33,7 @@ export default function RootLayout({
           <TooltipProvider delayDuration={300}>
             {children}
             <Toaster position="bottom-center" />
+            <TapHaptics />
           </TooltipProvider>
         </ThemeProvider>
       </body>
