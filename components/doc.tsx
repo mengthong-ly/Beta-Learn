@@ -11,6 +11,7 @@ import {
   PlayIcon,
 } from "lucide-react"
 
+import { Quiz } from "@/components/quiz"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +19,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { docHref, useWorkspace } from "@/components/workspace-context"
+import { docHref, storageKey, useWorkspace } from "@/components/workspace-context"
 import { findCourse } from "@/lib/courses"
 import type { Lesson } from "@/lib/lesson-parser"
 import { cn } from "@/lib/utils"
@@ -260,6 +261,14 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
           {doc.body}
         </Markdown>
       )}
+      {doc.kind === "lesson" && doc.quiz?.length ? (
+        <Quiz
+          key={doc.id}
+          title="Check your understanding"
+          questions={doc.quiz}
+          storeKey={storageKey(course, doc.id)}
+        />
+      ) : null}
     </article>
   )
 }

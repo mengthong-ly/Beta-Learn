@@ -12,10 +12,15 @@ export type Run = Pick<
   code: string
 }
 
+/** Best score per quiz. key: "python/print" (lesson), "python/section:2", "python/final". */
+export type QuizResult = { key: string; best: number; total: number; passedAt?: number }
+
 export const db = new Dexie("thonglearn") as Dexie & {
   runs: EntityTable<Run, "id">
   progress: EntityTable<{ lessonId: string; completedAt: number }, "lessonId">
   drafts: EntityTable<{ lessonId: string; code: string }, "lessonId">
+  quizzes: EntityTable<QuizResult, "key">
+  reads: EntityTable<{ lessonId: string; readAt: number }, "lessonId">
 }
 
 db.version(1).stores({
@@ -50,3 +55,9 @@ db.version(2)
       await t.bulkAdd(rows.map(prefix))
     }
   })
+
+// v3: quiz results, and lessons read to the end (lesson steps).
+db.version(3).stores({
+  quizzes: "key",
+  reads: "lessonId",
+})
