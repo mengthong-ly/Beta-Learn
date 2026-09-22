@@ -95,3 +95,76 @@ assert command("dance") == "Unknown command"
 assert command("go") == "Unknown command", "'go' alone has no direction"
 assert "match" in __src__, "Use a match statement"
 ```
+
+```quiz
+? easy: What does `case _:` do in a `match` statement?
++ Matches anything — it's the default, catch-all case
+- Matches only literal underscores
+- Marks a syntax error, since `_` is reserved
+- Matches only if it's the very first case
+> `_` is the wildcard pattern: it always succeeds and binds no name, so it's used as the fallback.
+? easy: What does this print?
+~~~python
+def size(n):
+    match n:
+        case 1:
+            return "one"
+        case 2 | 3:
+            return "a couple"
+        case _:
+            return "many"
+
+print(size(3), size(5))
+~~~
++ a couple many
+- one many
+- a couple a couple
+- many many
+> `2 | 3` matches either value, so size(3) hits that case. size(5) doesn't match any listed value, so it falls to the wildcard.
+? medium: What does this print?
+~~~python
+def axis(point):
+    match point:
+        case (0, 0):
+            return "origin"
+        case (x, 0):
+            return f"x-axis at {x}"
+        case (0, y):
+            return f"y-axis at {y}"
+        case (x, y):
+            return f"at ({x}, {y})"
+
+print(axis((7, 0)))
+~~~
++ x-axis at 7
+- y-axis at 7
+- at (7, 0)
+- origin
+> Patterns are tried top to bottom. (7, 0) isn't (0, 0), but it does match `(x, 0)` since its second element is 0 — that case is checked before the generic `(x, y)`.
+? medium: What does `case x if x > 0:` do?
++ Matches when x binds successfully AND the condition after `if` is true
+- Matches only the literal values greater than 0
+- Ignores the `if` part and always matches
+- Raises an error whenever x isn't greater than 0
+> A guard adds an extra condition after a pattern matches; the case is only chosen if both the pattern and the guard succeed.
+? hard: What does this print?
+~~~python
+def classify(n):
+    match n:
+        case x if x < 0:
+            return "negative"
+        case 0:
+            return "zero"
+        case x if x % 2 == 0:
+            return "even"
+        case _:
+            return "odd"
+
+print(classify(-4), classify(0), classify(6), classify(7))
+~~~
++ negative zero even odd
+- negative zero odd even
+- negative negative even odd
+- zero zero even odd
+> Each call is checked top to bottom: negative numbers hit the first guard, exactly 0 hits the literal case, even numbers hit the second guard, and everything else — like 7 — falls through to the wildcard.
+```
