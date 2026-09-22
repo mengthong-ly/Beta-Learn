@@ -8,6 +8,7 @@ import { celebrate } from "@/components/celebrate"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { db } from "@/lib/db"
+import { pushRow } from "@/lib/sync"
 import type { Level, Question } from "@/lib/quiz"
 import { cn } from "@/lib/utils"
 
@@ -77,12 +78,14 @@ export function Quiz({
     if (i + 1 < total) return
     const passed = score / total >= PASS
     const prev = await db.quizzes.get(storeKey)
-    await db.quizzes.put({
+    const row = {
       key: storeKey,
       total,
       best: Math.max(score, prev?.best ?? 0),
       passedAt: prev?.passedAt ?? (passed ? Date.now() : undefined),
-    })
+    }
+    await db.quizzes.put(row)
+    pushRow("quizzes", row)
     if (passed) celebrate(score === total)
   }
 

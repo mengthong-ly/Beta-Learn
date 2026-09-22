@@ -70,6 +70,7 @@ import {
 } from "@/lib/docs"
 import { useMediaQuery } from "@/hooks/use-mobile"
 import { db } from "@/lib/db"
+import { pushRow } from "@/lib/sync"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
 import { playground, type Lesson } from "@/lib/lesson-parser"
 import { reset, run, show, stop, useRunner, warmPython } from "@/lib/runner"
@@ -243,10 +244,11 @@ export function Workspace({
   const edit = (v: string) => {
     setCode(v)
     clearTimeout(draftTimer.current)
-    draftTimer.current = setTimeout(
-      () => db.drafts.put({ lessonId: saveKey, code: v }),
-      400
-    )
+    draftTimer.current = setTimeout(() => {
+      const row = { lessonId: saveKey, code: v, updatedAt: Date.now() }
+      db.drafts.put(row)
+      pushRow("drafts", row)
+    }, 400)
   }
 
   const execute = async (withCheck = false) => {
@@ -273,7 +275,9 @@ export function Workspace({
       inspect: res.inspect,
     } as never)
     if (res.check?.pass && !done.includes(key)) {
-      await db.progress.put({ lessonId: saveKey, completedAt: Date.now() })
+      const row = { lessonId: saveKey, completedAt: Date.now() }
+      await db.progress.put(row)
+      pushRow("progress", row)
       const finished = [...done, key]
       const next = lessons[lessons.indexOf(doc) + 1]
       const sec = sections(lessons).find((s) => s.lessons.includes(doc))

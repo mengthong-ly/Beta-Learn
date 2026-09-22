@@ -18,7 +18,7 @@ export type QuizResult = { key: string; best: number; total: number; passedAt?: 
 export const db = new Dexie("thonglearn") as Dexie & {
   runs: EntityTable<Run, "id">
   progress: EntityTable<{ lessonId: string; completedAt: number }, "lessonId">
-  drafts: EntityTable<{ lessonId: string; code: string }, "lessonId">
+  drafts: EntityTable<{ lessonId: string; code: string; updatedAt?: number }, "lessonId">
   quizzes: EntityTable<QuizResult, "key">
   reads: EntityTable<{ lessonId: string; readAt: number }, "lessonId">
 }
