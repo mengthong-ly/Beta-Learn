@@ -11,6 +11,7 @@ import {
   PlayIcon,
 } from "lucide-react"
 
+import { LessonSteps, ReadSentinel } from "@/components/lesson-steps"
 import { Quiz } from "@/components/quiz"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -249,6 +250,7 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
       <h1 className="text-[28px] leading-[1.2] font-semibold tracking-[-0.5px] text-foreground md:text-[36px]">
         {doc.title}
       </h1>
+      {doc.kind === "lesson" && <LessonSteps doc={doc} />}
       {doc.summary && (
         <p className="mt-2 text-base text-muted-foreground md:text-lg">
           {doc.summary}
@@ -261,6 +263,7 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
           {doc.body}
         </Markdown>
       )}
+      {doc.kind === "lesson" && <ReadSentinel lessonKey={storageKey(course, doc.id)} />}
       {doc.kind === "lesson" && doc.quiz?.length ? (
         <Quiz
           key={doc.id}
