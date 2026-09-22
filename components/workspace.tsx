@@ -20,6 +20,7 @@ import {
 import { usePanelRef, type PanelImperativeHandle } from "react-resizable-panels"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { celebrate, Celebrations } from "@/components/celebrate"
 import { CommandMenu } from "@/components/command-menu"
 import { HistoryList } from "@/components/history-list"
 import { InspectPane } from "@/components/inspect-pane"
@@ -228,6 +229,7 @@ export function Workspace({
     } as never)
     if (res.check?.pass && !done.includes(key)) {
       await db.progress.put({ lessonId: saveKey, completedAt: Date.now() })
+      celebrate()
       const next = lessons[lessons.indexOf(doc) + 1]
       toast.success(`${doc.title} complete!`, {
         description: next
@@ -569,6 +571,7 @@ export function Workspace({
           )}
         </SidebarInset>
         <CommandMenu open={paletteOpen} onOpenChange={setPaletteOpen} />
+        <Celebrations />
       </SidebarProvider>
     </WorkspaceContext.Provider>
   )
