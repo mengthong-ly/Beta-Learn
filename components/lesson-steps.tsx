@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from "motion/react"
 import { storageKey, useWorkspace } from "@/components/workspace-context"
 import { db } from "@/lib/db"
 import type { Lesson } from "@/lib/lesson-parser"
+import { pushRow } from "@/lib/sync"
 
 /** Marks the lesson as read once its end scrolls into view. */
 export function ReadSentinel({ lessonKey }: { lessonKey: string }) {
@@ -17,7 +18,9 @@ export function ReadSentinel({ lessonKey }: { lessonKey: string }) {
     if (!el) return
     const io = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return
-      db.reads.put({ lessonId: lessonKey, readAt: Date.now() })
+      const row = { lessonId: lessonKey, readAt: Date.now() }
+      db.reads.put(row)
+      pushRow("reads", row)
       io.disconnect()
     })
     io.observe(el)

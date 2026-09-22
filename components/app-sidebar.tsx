@@ -14,6 +14,7 @@ import {
   TrophyIcon,
 } from "lucide-react"
 
+import { AccountMenu } from "@/components/account-menu"
 import { AppearanceMenu } from "@/components/appearance-menu"
 import { CourseSwitcher } from "@/components/course-switcher"
 import { HistoryList } from "@/components/history-list"
@@ -294,6 +295,7 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter>
+        <AccountMenu />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>

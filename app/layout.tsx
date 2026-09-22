@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import "./globals.css"
+import { AccountSync } from "@/components/account-sync"
 import { TapHaptics } from "@/components/haptics"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
@@ -34,6 +35,7 @@ export default function RootLayout({
             {children}
             <Toaster position="bottom-center" />
             <TapHaptics />
+            <AccountSync />
           </TooltipProvider>
         </ThemeProvider>
       </body>
