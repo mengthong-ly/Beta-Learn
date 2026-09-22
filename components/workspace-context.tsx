@@ -5,9 +5,11 @@ import { createContext, useContext } from "react"
 import type { Lesson } from "@/lib/lesson-parser"
 
 export type Workspace = {
+  /** course id, e.g. "python" */
+  course: string
   lessons: Lesson[]
   guide: Lesson[]
-  /** lesson ids with a passed challenge */
+  /** doc keys (within this course) with a passed challenge */
   done: string[]
   /** load code into the editor (the "Try it" buttons) */
   tryCode: (code: string) => void
@@ -21,4 +23,4 @@ export function useWorkspace() {
   return ctx
 }
 
-export { docHref, docKey, findDoc, guideIndex } from "@/lib/docs"
+export { docHref, docKey, findDoc, guideIndex, storageKey } from "@/lib/docs"

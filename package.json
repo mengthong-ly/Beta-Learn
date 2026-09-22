@@ -4,17 +4,20 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "LOCAL_RUNNER=1 next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "check:content": "node --no-warnings scripts/check-content.ts"
+    "check:content": "node --no-warnings scripts/check-content.ts",
+    "setup:runtimes": "node --no-warnings scripts/setup-runtimes.ts",
+    "check:runner": "node --no-warnings scripts/check-runner.ts"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource/google-sans": "^5.3.1",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@fontsource/poppins": "^5.3.0",
     "@monaco-editor/react": "^4.7.0",
     "class-variance-authority": "^0.7.1",

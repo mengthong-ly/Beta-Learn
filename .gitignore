@@ -36,3 +36,7 @@ pnpm-debug.log*
 next-env.d.ts
 
 .playwright-mcp
+
+# local runner sandboxes (npm run setup:runtimes); only our support files are committed
+/runtimes/*
+!/runtimes/_support/

@@ -26,6 +26,7 @@ const ease = [0.23, 1, 0.32, 1] as const
 const PHASE_LABEL: Record<Phase, string> = {
   booting: "Loading Python (first run downloads ~10 MB)",
   compiling: "Compiling",
+  installing: "Downloading pandas & numpy (first use only)",
   running: "Running",
 }
 const ANIMATED_LINES = 60
@@ -153,7 +154,7 @@ export function OutputPane({ state }: { state: RunState }) {
                       )}
                     </span>
                     <span className={cn(active && "text-foreground")}>
-                      {PHASE_LABEL[p]}
+                      {(p === "running" && state.label) || PHASE_LABEL[p]}
                     </span>
                   </motion.li>
                 )
@@ -165,7 +166,7 @@ export function OutputPane({ state }: { state: RunState }) {
         {lines.length > 0 && (
           <pre
             key={`out-${runKey}`}
-            className="rounded-lg border bg-background p-3 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap"
+            className="overflow-x-auto rounded-lg border bg-background p-3 font-mono text-[13px] leading-relaxed whitespace-pre"
           >
             {lines.map((l, i) => (
               <motion.div

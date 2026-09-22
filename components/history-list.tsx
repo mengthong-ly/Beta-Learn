@@ -54,7 +54,7 @@ export function HistoryList({
   activeId?: number
   showLesson?: boolean
 }) {
-  const { lessons, guide } = useWorkspace()
+  const { course, lessons, guide } = useWorkspace()
   return groupByDay(runs).map((g) => (
     <SidebarGroup key={g.label}>
       <SidebarGroupLabel className="text-[11px] font-semibold tracking-[1px] uppercase">
@@ -69,7 +69,7 @@ export function HistoryList({
                 isActive={r.id === activeId}
                 className="h-auto py-1.5"
               >
-                <Link href={`/run/${r.id}`}>
+                <Link href={`/${course}/run/${r.id}`}>
                   <span
                     className={cn(
                       "size-1.5 shrink-0 rounded-full",

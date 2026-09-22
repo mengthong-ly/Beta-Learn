@@ -5,6 +5,11 @@ import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyod
 
 import { cleanTraceback } from "./traceback.js"
 
+// Practice datasets (public/data) for the file and pandas lessons. Written into Python's
+// working directory before every run, so a lesson that overwrites one can't break the next.
+const DATASETS = ["sales.csv", "sales_raw.csv", "students.csv", "branches.csv"]
+let datasets = []
+
 const ready = (async () => {
   const py = await loadPyodide()
   py.setStdin({
@@ -13,12 +18,16 @@ const ready = (async () => {
     },
   })
   py.runPython(await (await fetch("/inspect.py")).text())
+  datasets = await Promise.all(
+    DATASETS.map(async (name) => [name, await (await fetch(`/data/${name}`)).text()])
+  )
   postMessage({ type: "ready" })
   return py
 })()
 
 self.onmessage = async ({ data }) => {
   const py = await ready
+  for (const [name, text] of datasets) py.FS.writeFile(name, text)
   const stdout = []
   py.setStdout({
     batched: (line) => {
@@ -44,6 +53,13 @@ self.onmessage = async ({ data }) => {
   try {
     postMessage({ type: "phase", phase: "compiling" })
     py.runPython("__code__ = compile(__src__, '<exec>', 'exec')", { globals: ns, filename: "<thonglearn>" })
+    // pandas & numpy download on first import. Loading and importing them happens here,
+    // before the "running" phase, so it never counts against the run timeout.
+    await py.loadPackagesFromImports(data.code, {
+      messageCallback: () => postMessage({ type: "phase", phase: "installing" }),
+    })
+    if (py.loadedPackages.pandas)
+      py.runPython("import pandas\npandas.set_option('display.width', 120, 'display.max_columns', 20)")
     postMessage({ type: "phase", phase: "running" })
     py.runPython("exec(__code__, globals())", { globals: ns, filename: "<thonglearn>" })
   } catch (e) {

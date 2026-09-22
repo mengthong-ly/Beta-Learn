@@ -9,7 +9,7 @@ import {
   CheckCircle2Icon,
   ChevronRightIcon,
   PlayIcon,
-  } from "lucide-react"
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { useWorkspace } from "@/components/workspace-context"
+import { docHref, useWorkspace } from "@/components/workspace-context"
+import { findCourse } from "@/lib/courses"
 import type { Lesson } from "@/lib/lesson-parser"
 import { cn } from "@/lib/utils"
 
@@ -73,7 +74,7 @@ function BehindTheScenes({ children }: { children: React.ReactNode }) {
 }
 
 function GuideContents() {
-  const { guide } = useWorkspace()
+  const { course, guide } = useWorkspace()
   return (
     <>
       <p className="my-3">
@@ -89,7 +90,7 @@ function GuideContents() {
         {guide.map((g, i) => (
           <li key={g.id}>
             <Link
-              href={`/guide/${g.id}`}
+              href={docHref(g, course)}
               className="flex h-full flex-col gap-1 rounded-lg border p-4 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <span className="text-xs text-muted-foreground tabular-nums">
@@ -106,7 +107,8 @@ function GuideContents() {
 }
 
 export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
-  const { done, tryCode } = useWorkspace()
+  const { course, done, tryCode } = useWorkspace()
+  const courseLang = findCourse(course).lang
 
   const components: Components = {
     h2: ({ children }) => (
@@ -200,8 +202,8 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
       return (
         <div className="my-4 min-h-8 overflow-hidden rounded-lg bg-muted">
           <div className="flex h-8 items-center justify-between pr-1 pl-4 font-mono text-xs text-muted-foreground">
-            <span>{lang}</span>
-            {lang === "python" && (
+            <span>{lang.replace(/-snippet$/, "")}</span>
+            {lang === courseLang && (
               <Button
                 size="xs"
                 variant="ghost"
@@ -247,7 +249,9 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
         {doc.title}
       </h1>
       {doc.summary && (
-        <p className="mt-2 text-base text-muted-foreground md:text-lg">{doc.summary}</p>
+        <p className="mt-2 text-base text-muted-foreground md:text-lg">
+          {doc.summary}
+        </p>
       )}
       {doc.id === "guide" && doc.kind === "guide" ? (
         <GuideContents />

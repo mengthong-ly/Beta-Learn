@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { AppearanceMenu } from "@/components/appearance-menu"
+import { CourseSwitcher } from "@/components/course-switcher"
 import { HistoryList } from "@/components/history-list"
 import {
   Collapsible,
@@ -37,7 +38,7 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { docKey, useWorkspace } from "@/components/workspace-context"
+import { docHref, docKey, useWorkspace } from "@/components/workspace-context"
 import { db } from "@/lib/db"
 import { cn } from "@/lib/utils"
 
@@ -52,10 +53,16 @@ export function AppSidebar({
   runId?: number
   onSearch: () => void
 }) {
-  const { lessons, guide, done } = useWorkspace()
+  const { course, lessons, guide, done } = useWorkspace()
   const recent = useLiveQuery(
-    () => db.runs.orderBy("createdAt").reverse().limit(30).toArray(),
-    [],
+    () =>
+      db.runs
+        .orderBy("createdAt")
+        .reverse()
+        .filter((r) => r.lessonId.startsWith(`${course}/`))
+        .limit(30)
+        .toArray(),
+    [course],
     []
   )
 
@@ -82,12 +89,7 @@ export function AppSidebar({
   return (
     <Sidebar>
       <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2 px-2 pt-1 pb-2">
-          <span className="flex size-6 items-center justify-center rounded-md bg-foreground font-mono text-xs font-bold text-background">
-            Th
-          </span>
-          <span className="font-semibold text-foreground">ThongLearn</span>
-        </Link>
+        <CourseSwitcher course={course} />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={onSearch}>
@@ -101,7 +103,7 @@ export function AppSidebar({
               asChild
               isActive={current === "playground" && !runId}
             >
-              <Link href="/playground">
+              <Link href={`/${course}/playground`}>
                 <CodeIcon />
                 <span>Playground</span>
               </Link>
@@ -112,7 +114,9 @@ export function AppSidebar({
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className={label}>Lessons</SidebarGroupLabel>
+          <SidebarGroupLabel className={label}>
+            Course sessions
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {sections.map((s) => {
@@ -129,7 +133,7 @@ export function AppSidebar({
                   >
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton>
+                        <SidebarMenuButton className="pr-12" title={s.name}>
                           <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                           <span>{s.name}</span>
                         </SidebarMenuButton>
@@ -149,7 +153,7 @@ export function AppSidebar({
                                 asChild
                                 isActive={l.id === current && !runId}
                               >
-                                <Link href={`/lesson/${l.id}`}>
+                                <Link href={docHref(l, course)}>
                                   <span className="truncate" title={l.title}>
                                     {l.title}
                                   </span>
@@ -170,59 +174,61 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className={label}>Reference</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <Collapsible
-                asChild
-                open={open.includes("Guide Book")}
-                onOpenChange={(o) => setSection("Guide Book", o)}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
-                      <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                      <BookMarkedIcon />
-                      <span>Guide Book</span>
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <SidebarMenuBadge>{guide.length}</SidebarMenuBadge>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton
-                          asChild
-                          isActive={current === "guide" && !runId}
-                        >
-                          <Link href="/guide">Contents</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      {guide.map((g, i) => (
-                        <SidebarMenuSubItem key={g.id}>
+        {guide.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={label}>Reference</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <Collapsible
+                  asChild
+                  open={open.includes("Guide Book")}
+                  onOpenChange={(o) => setSection("Guide Book", o)}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton>
+                        <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        <BookMarkedIcon />
+                        <span>Guide Book</span>
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <SidebarMenuBadge>{guide.length}</SidebarMenuBadge>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
                           <SidebarMenuSubButton
                             asChild
-                            isActive={docKey(g) === current && !runId}
+                            isActive={current === "guide" && !runId}
                           >
-                            <Link href={`/guide/${g.id}`}>
-                              <span className="w-4 shrink-0 text-muted-foreground tabular-nums">
-                                {i + 1}
-                              </span>
-                              <span className="truncate" title={g.title}>
-                                {g.title}
-                              </span>
-                            </Link>
+                            <Link href={`/${course}/guide`}>Contents</Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                        {guide.map((g, i) => (
+                          <SidebarMenuSubItem key={g.id}>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={docKey(g) === current && !runId}
+                            >
+                              <Link href={docHref(g, course)}>
+                                <span className="w-4 shrink-0 text-muted-foreground tabular-nums">
+                                  {i + 1}
+                                </span>
+                                <span className="truncate" title={g.title}>
+                                  {g.title}
+                                </span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {recent.length > 0 && (
           <>

@@ -1,0 +1,114 @@
+<!doctype html>
+<!--
+  ThongLearn's React runtime. Loaded by the Preview tab in a sandboxed iframe (allow-scripts only,
+  so it has an opaque origin and can't touch the app). The parent posts { code, check }; this page
+  transpiles with Sucrase, renders `export default` into #root, runs the check against the DOM,
+  and reports back with postMessage: { type: "line" | "done", ... }.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@19.3.0",
+          "react/": "https://esm.sh/react@19.3.0/",
+          "react-dom": "https://esm.sh/react-dom@19.3.0",
+          "react-dom/": "https://esm.sh/react-dom@19.3.0/"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+      }
+      body {
+        margin: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { transform } from "https://esm.sh/sucrase@3.35.1"
+
+      const send = (msg) => parent.postMessage({ thonglearn: true, ...msg }, "*")
+      const show = (x) => (typeof x === "string" ? x : JSON.stringify(x))
+      const output = []
+      for (const [method, kind] of [["log", "out"], ["info", "out"], ["warn", "err"], ["error", "err"]]) {
+        const original = console[method].bind(console)
+        console[method] = (...args) => {
+          const text = args.map(show).join(" ")
+          if (kind === "out") output.push(text)
+          send({ type: "line", kind, text })
+          original(...args)
+        }
+      }
+
+      // Errors thrown later (event handlers, effects) show up as output lines.
+      addEventListener("error", (e) => send({ type: "line", kind: "err", text: String(e.message) }))
+      addEventListener("unhandledrejection", (e) =>
+        send({ type: "line", kind: "err", text: String(e.reason?.message ?? e.reason) })
+      )
+
+      const compile = (code, name) =>
+        transform(code, {
+          transforms: ["jsx", "typescript"],
+          jsxRuntime: "automatic",
+          production: true,
+          filePath: name,
+        }).code
+      const lineOf = (e) => Number(String(e?.message).match(/\((\d+):\d+\)/)?.[1]) || undefined
+
+      // Helpers for check blocks.
+      const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms))
+      const expect = (ok, message = "Check failed") => {
+        if (!ok) throw new Error(message)
+      }
+      const $ = (selector) => document.querySelector(selector)
+      const $$ = (selector) => [...document.querySelectorAll(selector)]
+      const click = async (el) => {
+        el.click()
+        await tick()
+      }
+      const type = async (el, value) => {
+        const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement
+        Object.getOwnPropertyDescriptor(proto.prototype, "value").set.call(el, value)
+        el.dispatchEvent(new Event("input", { bubbles: true }))
+        await tick()
+      }
+
+      addEventListener("message", async ({ data }) => {
+        if (!data?.thonglearn) return
+        const started = performance.now()
+        const done = (patch) => send({ type: "done", ms: Math.round(performance.now() - started), ...patch })
+        let renderError
+        try {
+          const js = compile(data.code, "App.tsx")
+          const mod = await import(URL.createObjectURL(new Blob([js], { type: "text/javascript" })))
+          if (typeof mod.default !== "function")
+            throw new Error("Export your component: export default function App() { … }")
+          const [{ createElement }, { createRoot }] = await Promise.all([import("react"), import("react-dom/client")])
+          createRoot(document.getElementById("root"), {
+            onUncaughtError: (e) => (renderError = e),
+          }).render(createElement(mod.default))
+          await tick(50)
+          if (renderError) throw renderError
+          if (!data.check) return done({})
+          const AsyncFunction = (async () => {}).constructor
+          const run = new AsyncFunction("expect", "tick", "$", "$$", "click", "type", "output", "root", compile(data.check, "check.tsx"))
+          try {
+            await run(expect, tick, $, $$, click, type, output, document.getElementById("root"))
+            done({ check: { pass: true } })
+          } catch (e) {
+            done({ check: { pass: false, message: e?.message ?? String(e) } })
+          }
+        } catch (e) {
+          done({ error: `${e?.name ?? "Error"}: ${e?.message ?? e}`, errorLine: lineOf(e) })
+        }
+      })
+    </script>
+  </body>
+</html>

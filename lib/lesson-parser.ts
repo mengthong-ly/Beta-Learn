@@ -13,7 +13,7 @@ export type Lesson = {
 }
 
 /** Parses a lesson file: `---` frontmatter, markdown prose, and fenced
- *  ```python starter|solution|check blocks that are pulled out of the prose. */
+ *  ```<lang> starter|solution|check blocks that are pulled out of the prose. */
 export function parseLesson(
   id: string,
   raw: string,
@@ -36,7 +36,7 @@ export function parseLesson(
   const body = raw
     .slice(fm?.[0].length ?? 0)
     .replace(
-      /```python (starter|solution|check)\n([\s\S]*?)```\n?/g,
+      /```\w+ (starter|solution|check)\n([\s\S]*?)```\n?/g,
       (_, block: string, code: string) => {
         blocks[block] = code.trimEnd() + "\n"
         return ""
@@ -61,10 +61,6 @@ export const playground: Lesson = {
   kind: "playground",
   title: "Playground",
   section: "Free practice",
-  body: "A blank scratchpad. Write any Python you like and press **Run**. Every run is saved to your history.",
-  starter: 'print("Hello, Python!")\n',
+  body: "A blank scratchpad. Write any code you like and press **Run**. Every run is saved to your history.",
+  starter: "", // per course: `hello` in lib/courses.ts
 }
-
-/** Starter code for the editor while reading a guide chapter. */
-export const GUIDE_STARTER =
-  '# Press "Try it" on any example in this chapter,\n# or write your own and press Run. Open the Inspect tab to look inside.\n'

@@ -15,6 +15,19 @@ loader.config({
   paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.56.0/min/vs" },
 })
 
+const setup: BeforeMount = (monaco) => {
+  // Lessons are single files: Monaco can't see `react` or the lesson's other files, so it
+  // checks syntax only. Type errors come from the real compiler when you press Run.
+  monaco.typescript.typescriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: true,
+  })
+  monaco.typescript.typescriptDefaults.setCompilerOptions({
+    jsx: monaco.typescript.JsxEmit.ReactJSX,
+    target: monaco.typescript.ScriptTarget.ESNext,
+  })
+  defineThemes(monaco)
+}
+
 const defineThemes: BeforeMount = (monaco) => {
   const common = { "editorLineNumber.activeForeground": "#9b9a97" }
   monaco.editor.defineTheme("notion-light", {
@@ -60,12 +73,18 @@ const defineThemes: BeforeMount = (monaco) => {
 
 export function CodeEditor({
   value,
+  language,
+  path,
   onChange,
   onRun,
   errorLine,
   highlightLine,
 }: {
   value: string
+  /** a course's `lang`; "tsx" is TypeScript with JSX */
+  language: string
+  /** the file name, e.g. "App.tsx": Monaco uses it to enable JSX */
+  path: string
   onChange: (v: string) => void
   onRun: () => void
   errorLine?: number
@@ -114,10 +133,11 @@ export function CodeEditor({
 
   return (
     <Editor
-      language="python"
+      language={language === "tsx" ? "typescript" : language}
+      path={path}
       value={value}
       onChange={(v) => onChange(v ?? "")}
-      beforeMount={defineThemes}
+      beforeMount={setup}
       onMount={onMount}
       theme={resolvedTheme === "dark" ? "notion-dark" : "notion-light"}
       loading={
@@ -132,7 +152,7 @@ export function CodeEditor({
         scrollBeyondLastLine: false,
         padding: { top: 16, bottom: 16 },
         renderLineHighlight: "line",
-        tabSize: 4,
+        tabSize: language === "python" || language === "php" ? 4 : 2,
         automaticLayout: true,
         smoothScrolling: true,
         cursorSmoothCaretAnimation: "on",

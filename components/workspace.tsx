@@ -24,6 +24,7 @@ import { CommandMenu } from "@/components/command-menu"
 import { HistoryList } from "@/components/history-list"
 import { InspectPane } from "@/components/inspect-pane"
 import { OutputPane } from "@/components/output-pane"
+import { PreviewPane } from "@/components/preview-pane"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -50,11 +51,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { WorkspaceContext } from "@/components/workspace-context"
-import { docHref, docKey, findDoc, guideIndex } from "@/lib/docs"
+import { docHref, docKey, findDoc, guideIndex, storageKey } from "@/lib/docs"
 import { useMediaQuery } from "@/hooks/use-mobile"
 import { db } from "@/lib/db"
-import { GUIDE_STARTER, playground, type Lesson } from "@/lib/lesson-parser"
-import { reset, run, show, stop, useRunner } from "@/lib/runner"
+import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
+import { playground, type Lesson } from "@/lib/lesson-parser"
+import { reset, run, show, stop, useRunner, warmPython } from "@/lib/runner"
 
 // Monaco touches `window`; render it only in the browser.
 const CodeEditor = dynamic(
@@ -99,28 +101,38 @@ function toggle(p: PanelImperativeHandle | null) {
 }
 
 /**
- * The persistent app shell (lives in the (workspace) layout, so it survives navigation:
+ * A course's persistent app shell (lives in the [course] layout, so it survives navigation:
  * Python, the editor and the output never reload). Each page renders into the reading pane.
  */
 export function Workspace({
+  course,
   lessons,
   guide,
   children,
 }: {
+  course: string
   lessons: Lesson[]
   guide: Lesson[]
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const [, route, param] = usePathname().split("/")
+  const c = findCourse(course)
+  const preview = hasPreview(c)
+  const [, , route, param] = usePathname().split("/")
   const runId = route === "run" ? Number(param) : undefined
   const savedRun = useLiveQuery(
     () => (runId ? db.runs.get(runId) : undefined),
     [runId]
   )
   const done = useLiveQuery(
-    () => db.progress.toCollection().primaryKeys(),
-    [],
+    async () =>
+      (
+        await db.progress
+          .where("lessonId")
+          .startsWith(`${course}/`)
+          .primaryKeys()
+      ).map((k) => k.slice(course.length + 1)),
+    [course],
     [] as string[]
   )
 
@@ -135,7 +147,9 @@ export function Workspace({
           ? findDoc(savedRun?.lessonId, lessons, guide)
           : undefined) ?? playground
   const key = docKey(doc)
-  const starter = doc.starter || GUIDE_STARTER
+  const saveKey = storageKey(course, key)
+  const starter =
+    doc.starter || (doc.kind === "playground" ? c.hello : guideStarter(c))
   const siblings =
     doc.kind === "lesson"
       ? lessons
@@ -155,16 +169,20 @@ export function Workspace({
   // Below 1024px three panes get too cramped, so switch to tabs.
   const compact = useMediaQuery("(max-width: 1023px)")
 
+  useEffect(() => {
+    if (c.runtime === "pyodide") warmPython()
+  }, [c.runtime])
+
   // Load the draft (or starter) when switching docs.
   useEffect(() => {
     if (runId) return
     let live = true
     reset()
-    db.drafts.get(key).then((d) => live && setCode(d?.code ?? starter))
+    db.drafts.get(saveKey).then((d) => live && setCode(d?.code ?? starter))
     return () => {
       live = false
     }
-  }, [key, starter, runId])
+  }, [saveKey, starter, runId])
 
   // Restore a past run: editor state during render, output pane via the runner store.
   const [restoredId, setRestoredId] = useState<number>()
@@ -181,18 +199,19 @@ export function Workspace({
     setCode(v)
     clearTimeout(draftTimer.current)
     draftTimer.current = setTimeout(
-      () => db.drafts.put({ lessonId: key, code: v }),
+      () => db.drafts.put({ lessonId: saveKey, code: v }),
       400
     )
   }
 
   const execute = async (withCheck = false) => {
     if (rightPane.current?.isCollapsed()) rightPane.current.expand()
-    if (tab === "history") setTab("output")
+    setTab(preview && !(withCheck && c.id === "flutter") ? "preview" : "output")
     setMobileTab("output")
-    const res = await run(code, withCheck ? doc.check : undefined)
+    const res = await run(code, withCheck ? doc.check : undefined, c)
+    if (res.error) setTab("output")
     await db.runs.add({
-      lessonId: key,
+      lessonId: saveKey,
       createdAt: Date.now(),
       code,
       status: res.status,
@@ -204,7 +223,7 @@ export function Workspace({
       inspect: res.inspect,
     } as never)
     if (res.check?.pass && !done.includes(key)) {
-      await db.progress.put({ lessonId: key, completedAt: Date.now() })
+      await db.progress.put({ lessonId: saveKey, completedAt: Date.now() })
       const next = lessons[lessons.indexOf(doc) + 1]
       toast.success(`${doc.title} complete!`, {
         description: next
@@ -213,7 +232,7 @@ export function Workspace({
         action: next
           ? {
               label: "Next lesson",
-              onClick: () => router.push(`/lesson/${next.id}`),
+              onClick: () => router.push(docHref(next, course)),
             }
           : undefined,
       })
@@ -246,8 +265,9 @@ export function Workspace({
 
   const running = state.status === "running"
   const docRuns = useLiveQuery(
-    () => db.runs.where("lessonId").equals(key).reverse().sortBy("createdAt"),
-    [key],
+    () =>
+      db.runs.where("lessonId").equals(saveKey).reverse().sortBy("createdAt"),
+    [saveKey],
     []
   )
 
@@ -262,7 +282,7 @@ export function Workspace({
       <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-3">
         <span className="mr-auto flex h-full items-center gap-1.5 border-b-2 border-primary px-1 pt-0.5 font-mono text-xs text-foreground">
           <FileCode2Icon className="size-3.5 text-link" />
-          main.py
+          {c.file}
         </span>
         <Tip label="Reset to starter code">
           <Button
@@ -321,6 +341,8 @@ export function Workspace({
       <div className="min-h-0 flex-1">
         <CodeEditor
           value={code}
+          language={c.lang}
+          path={c.file}
           onChange={edit}
           onRun={() => executeRef.current()}
           errorLine={state.status === "error" ? state.errorLine : undefined}
@@ -344,7 +366,10 @@ export function Workspace({
             Output
             {running && <Spinner />}
           </TabsTrigger>
-          <TabsTrigger value="inspect">Inspect</TabsTrigger>
+          {preview && <TabsTrigger value="preview">Preview</TabsTrigger>}
+          {c.runtime === "pyodide" && (
+            <TabsTrigger value="inspect">Inspect</TabsTrigger>
+          )}
           <TabsTrigger value="history">
             History{docRuns.length ? ` (${docRuns.length})` : ""}
           </TabsTrigger>
@@ -353,6 +378,16 @@ export function Workspace({
       <TabsContent value="output" className="min-h-0">
         <OutputPane state={state} />
       </TabsContent>
+      {preview && (
+        // Always mounted: a React run renders here even while the Output tab is showing.
+        <TabsContent
+          value="preview"
+          forceMount
+          className="min-h-0 data-[state=inactive]:hidden"
+        >
+          <PreviewPane state={state} />
+        </TabsContent>
+      )}
       <TabsContent value="inspect" className="min-h-0 overflow-auto">
         <InspectPane
           state={state}
@@ -386,7 +421,9 @@ export function Workspace({
   )
 
   return (
-    <WorkspaceContext.Provider value={{ lessons, guide, done, tryCode }}>
+    <WorkspaceContext.Provider
+      value={{ course, lessons, guide, done, tryCode }}
+    >
       <SidebarProvider>
         <AppSidebar
           current={key}
@@ -428,7 +465,7 @@ export function Workspace({
                         aria-label="Previous"
                         asChild
                       >
-                        <Link href={docHref(siblings[idx - 1])}>
+                        <Link href={docHref(siblings[idx - 1], course)}>
                           <ChevronLeftIcon />
                         </Link>
                       </Button>
@@ -454,7 +491,7 @@ export function Workspace({
                         aria-label="Next"
                         asChild
                       >
-                        <Link href={docHref(siblings[idx + 1])}>
+                        <Link href={docHref(siblings[idx + 1], course)}>
                           <ChevronRightIcon />
                         </Link>
                       </Button>

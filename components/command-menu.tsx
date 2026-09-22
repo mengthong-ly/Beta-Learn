@@ -8,6 +8,7 @@ import {
   CheckIcon,
   CodeIcon,
   HistoryIcon,
+  LayoutGridIcon,
 } from "lucide-react"
 
 import {
@@ -20,8 +21,9 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command"
+import { courses } from "@/lib/courses"
 import { db } from "@/lib/db"
-import { findDoc, useWorkspace } from "@/components/workspace-context"
+import { docHref, findDoc, useWorkspace } from "@/components/workspace-context"
 
 export function CommandMenu({
   open,
@@ -31,14 +33,20 @@ export function CommandMenu({
   onOpenChange: (o: boolean) => void
 }) {
   const router = useRouter()
-  const { lessons, guide, done } = useWorkspace()
+  const { course, lessons, guide, done } = useWorkspace()
   const sections = [...new Set(lessons.map((l) => l.section))].map((name) => ({
     name,
     lessons: lessons.filter((l) => l.section === name),
   }))
   const recent = useLiveQuery(
-    () => db.runs.orderBy("createdAt").reverse().limit(8).toArray(),
-    [],
+    () =>
+      db.runs
+        .orderBy("createdAt")
+        .reverse()
+        .filter((r) => r.lessonId.startsWith(`${course}/`))
+        .limit(8)
+        .toArray(),
+    [course],
     []
   )
   const pick = (path: string) => {
@@ -58,10 +66,30 @@ export function CommandMenu({
         <CommandList>
           <CommandEmpty>Nothing found.</CommandEmpty>
           <CommandGroup heading="Go to">
-            <CommandItem onSelect={() => pick("/playground")}>
+            <CommandItem onSelect={() => pick(`/${course}/playground`)}>
               <CodeIcon />
               Playground
             </CommandItem>
+          </CommandGroup>
+          <CommandGroup heading="Courses">
+            <CommandItem onSelect={() => pick("/")}>
+              <LayoutGridIcon />
+              All courses
+            </CommandItem>
+            {courses
+              .filter((c) => c.id !== course)
+              .map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={`course ${c.name}`}
+                  onSelect={() => pick(`/${c.id}`)}
+                >
+                  <span className="w-4 font-mono text-xs font-bold text-muted-foreground">
+                    {c.mark}
+                  </span>
+                  {c.name}
+                </CommandItem>
+              ))}
           </CommandGroup>
           {sections.map((s) => (
             <CommandGroup key={s.name} heading={s.name}>
@@ -69,7 +97,7 @@ export function CommandMenu({
                 <CommandItem
                   key={l.id}
                   value={`${s.name} ${l.title}`}
-                  onSelect={() => pick(`/lesson/${l.id}`)}
+                  onSelect={() => pick(docHref(l, course))}
                 >
                   <BookOpenIcon />
                   {l.title}
@@ -85,7 +113,7 @@ export function CommandMenu({
               <CommandItem
                 key={g.id}
                 value={`guide ${g.title} ${g.summary ?? ""}`}
-                onSelect={() => pick(`/guide/${g.id}`)}
+                onSelect={() => pick(docHref(g, course))}
               >
                 <BookMarkedIcon />
                 <span className="w-5 text-muted-foreground tabular-nums">
@@ -103,7 +131,7 @@ export function CommandMenu({
                   <CommandItem
                     key={r.id}
                     value={`run ${r.id} ${r.code.slice(0, 80)}`}
-                    onSelect={() => pick(`/run/${r.id}`)}
+                    onSelect={() => pick(`/${course}/run/${r.id}`)}
                   >
                     <HistoryIcon />
                     <span className="truncate">

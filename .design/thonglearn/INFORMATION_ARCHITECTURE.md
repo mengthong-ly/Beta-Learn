@@ -2,17 +2,22 @@
 
 ## Site Map
 
-- Root `#/`: redirects to the first incomplete lesson
-- Lesson `#/lesson/<slug>`: 33 lessons, e.g. `#/lesson/lists`
-- Past run `#/run/<id>`: that run's lesson, with its code and output restored
-- Playground `#/playground`: a free scratchpad
+- Home `/`: course picker. One card per course in `lib/courses.ts` (mark, name, tagline, counts, progress, Start/Continue)
+- Course `/<course>`: redirects to that course's first incomplete lesson
+- Lesson `/<course>/lesson/<slug>`, e.g. `/python/lesson/lists`
+- Guide Book `/<course>/guide` and `/<course>/guide/<chapter>`
+- Past run `/<course>/run/<id>`: that run's lesson, with its code and output restored
+- Playground `/<course>/playground`: a free scratchpad
+- Old root URLs (`/lesson/…`, `/guide…`, `/playground`, `/run/…`) 308-redirect to `/python/…`
 
 ## Navigation Model
 
-- **Primary**: the left sidebar (⌘B): Search (⌘K), Playground, then Lessons (7 collapsible sections with progress), then History.
-- **Secondary**: the header breadcrumb (Section / Lesson) plus ‹ n/33 › for previous and next.
+- **Primary**: the left sidebar (⌘B): course switcher (other courses + "All courses" → Home), Search (⌘K), Playground, then Lessons (collapsible sections with progress), Guide Book, then History. Everything is scoped to the current course.
+- **Secondary**: the header breadcrumb (Section / Lesson) plus ‹ n/N › for previous and next.
 - **Utility**: the theme toggle in the sidebar footer (or press D), and the right-pane toggle (⌘\).
 - **Mobile**: the sidebar opens as a Sheet; the main area uses Lesson / Code / Output tabs.
+- **Storage**: drafts, runs and progress are keyed `<course>/<doc key>` (Dexie v2 migrated older keys to `python/…`).
+- **Runtimes** (`lib/courses.ts`): Python in the browser (Pyodide); React in a sandboxed iframe, shown in a **Preview** tab; PHP, Laravel, TypeScript, Dart and Flutter on your computer through the local runner (ADR-0001). Flutter also gets a Preview tab (its web build). The Inspect tab is Python-only.
 
 ## Content Hierarchy
 
