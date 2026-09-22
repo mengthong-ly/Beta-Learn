@@ -95,22 +95,22 @@ print(f"[{7:03}]")
 > `03` zero-pads the number so it fills a width of 3 characters.
 ? hard: What does this print?
 ~~~python
-price = 1234567.891
-print(f"{price:,.2f}")
+total = 1234567
+print(f"{total:,}")
 ~~~
-+ 1,234,567.89
-- 1234567.89
-- 1,234,567.891
-- 1,234,568
-> `,` adds thousands separators while `.2f` still rounds the value to 2 decimals.
++ 1,234,567
+- 1234567
+- 1,234,567.00
+- 1,234567
+> `,` adds thousands separators on its own — it doesn't need `.2f` alongside it; without a decimal spec, the int just gets grouped digits.
 ? hard: What does this print?
 ~~~python
-x = 42
-print(f"{x=}")
+pi = 3.14159265
+print(f"{pi=:.2f}")
 ~~~
-+ x=42
-- 42
-- x = 42
-- "x=42"
-> The `=` debug specifier shows the expression text, an equals sign, and its value, with no extra spaces.
++ pi=3.14
+- pi=3.14159265
+- 3.14
+- pi = 3.14
+> The `=` debug specifier can take a format spec after it too: it prints the expression text, `=`, then the value formatted with `.2f`.
 ```
