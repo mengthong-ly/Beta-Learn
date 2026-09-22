@@ -52,7 +52,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { WorkspaceContext } from "@/components/workspace-context"
-import { docHref, docKey, findDoc, guideIndex, storageKey } from "@/lib/docs"
+import {
+  docHref,
+  docKey,
+  findDoc,
+  guideIndex,
+  quizDoc,
+  storageKey,
+} from "@/lib/docs"
 import { useMediaQuery } from "@/hooks/use-mobile"
 import { db } from "@/lib/db"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
@@ -144,9 +151,11 @@ export function Workspace({
         ? param
           ? guide.find((g) => g.id === param)
           : guideIndex
-        : route === "run"
-          ? findDoc(savedRun?.lessonId, lessons, guide)
-          : undefined) ?? playground
+        : route === "quiz"
+          ? quizDoc(param)
+          : route === "run"
+            ? findDoc(savedRun?.lessonId, lessons, guide)
+            : undefined) ?? playground
   const key = docKey(doc)
   const saveKey = storageKey(course, key)
   const starter =
@@ -214,7 +223,10 @@ export function Workspace({
     const res = await run(code, withCheck ? doc.check : undefined, c)
     if (res.error) setTab("output")
     if (res.status === "done" && res.check?.pass !== false)
-      setGlow((g) => ({ n: (g?.n ?? 0) + 1, kind: res.check?.pass ? "pass" : "ok" }))
+      setGlow((g) => ({
+        n: (g?.n ?? 0) + 1,
+        kind: res.check?.pass ? "pass" : "ok",
+      }))
     await db.runs.add({
       lessonId: saveKey,
       createdAt: Date.now(),
@@ -345,7 +357,14 @@ export function Workspace({
         )}
       </div>
       <div className="relative min-h-0 flex-1">
-        {glow && <div key={glow.n} data-glow={glow.kind} className="run-glow" aria-hidden />}
+        {glow && (
+          <div
+            key={glow.n}
+            data-glow={glow.kind}
+            className="run-glow"
+            aria-hidden
+          />
+        )}
         <CodeEditor
           value={code}
           language={c.lang}
