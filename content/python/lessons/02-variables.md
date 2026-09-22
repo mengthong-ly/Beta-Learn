@@ -68,3 +68,63 @@ print(a, b)
 assert a == 7 and b == 3, "a should be 7 and b should be 3 after the swap."
 assert __stdout__.strip() == "7 3", "Print a and b: 7 3"
 ```
+
+```quiz
+? easy: What does this print?
+~~~python
+name = "Ada"
+age = 36
+print(name, age)
+~~~
++ Ada 36
+- Ada, 36
+- Ada36
+- "Ada" 36
+> print() puts a space between values by default.
+? easy: Which of these is a valid Python variable name?
++ `_count`
+- `2count`
+- `my-count`
+- `count!`
+> Names can use letters, digits and `_`, but can't start with a digit, and `-`/`!` aren't allowed in names.
+? medium: What does this print?
+~~~python
+score = 10
+score = score + 5
+score = "fifteen"
+print(score)
+~~~
++ fifteen
+- 15
+- 10
+- Error
+> Variables can be reassigned to a value of a different type; the last assignment wins.
+? medium: What's the difference between `=` and `==`?
++ `=` assigns a value; `==` compares two values for equality
+- `=` compares; `==` assigns
+- They do the same thing
+- `=` is only for numbers, `==` is only for strings
+> `x = 5` stores 5 in x; `x == 5` asks "is x equal to 5?" and produces a boolean.
+? hard: What does this print?
+~~~python
+x, y = 1, 2
+x, y = y, x
+print(x, y)
+~~~
++ 2 1
+- 1 2
+- 2 2
+- Error
+> The right side is fully evaluated before any assignment happens, so `x, y = y, x` swaps them without a temp variable.
+? hard: What does this print?
+~~~python
+Age = 10
+age = 20
+print(Age, age)
+~~~
++ 10 20
+- 20 20
+- 10 10
+- Error
+> Python names are case-sensitive: `Age` and `age` are two different variables.
+```

@@ -59,3 +59,48 @@ print(ranked)
 ```python check
 assert ranked == [("Bea", 90), ("Zoe", 90), ("Adam", 85), ("Carl", 70)], f"Got {ranked}"
 ```
+
+```quiz
+? easy: What is a lambda in Python?
++ A small anonymous function made of a single expression
+- A way to import external modules
+- A special kind of loop
+- A built-in exception type
+> `lambda arguments: expression` creates a tiny function without a `def` or a name, usually to pass somewhere else as an argument.
+? easy: What does this print?
+~~~python
+square = lambda x: x * x
+print(square(6))
+~~~
++ 36
+- 12
+- 6
+- square(x)
+> The lambda multiplies its argument by itself: 6 * 6 is 36.
+? medium: What does this print?
+~~~python
+words = ["kiwi", "fig", "banana"]
+print(sorted(words, key=len))
+~~~
++ ['fig', 'kiwi', 'banana']
+- ['kiwi', 'fig', 'banana']
+- ['banana', 'kiwi', 'fig']
+- ['fig', 'banana', 'kiwi']
+> key=len sorts by each word's length. "fig" has 3 letters, "kiwi" has 4, "banana" has 6, so that's the order.
+? medium: Why does `sorted(words, key=str.lower)` sort case-insensitively?
++ Each word is compared using its lowercase version, without changing the original words
+- It permanently lowercases every word in the list
+- str.lower is only applied to the first word
+- sorted() ignores letter case by default, even without key=
+> `key` computes a value to compare *by* for each item — it doesn't alter the items themselves, so the original casing survives in the result.
+? hard: What does this print?
+~~~python
+players = [("Kim", 12), ("Sam", 20), ("Lee", 20), ("Ana", 8)]
+print(sorted(players, key=lambda p: (-p[1], p[0])))
+~~~
++ [('Lee', 20), ('Sam', 20), ('Kim', 12), ('Ana', 8)]
+- [('Sam', 20), ('Lee', 20), ('Kim', 12), ('Ana', 8)]
+- [('Ana', 8), ('Kim', 12), ('Lee', 20), ('Sam', 20)]
+- [('Lee', 20), ('Sam', 20), ('Ana', 8), ('Kim', 12)]
+> The key is (-score, name): negating the score sorts the highest scores first, and ties break by name ascending — "Lee" comes before "Sam" alphabetically.
+```

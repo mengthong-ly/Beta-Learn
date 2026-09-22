@@ -56,3 +56,44 @@ assert len(lines) >= 2, "Print two lines."
 assert lines[0] == "Hello, Python!", f"Line 1 should be 'Hello, Python!' but was {lines[0]!r}"
 assert lines[1] == "1 | 2 | 3", f"Line 2 should be '1 | 2 | 3' but was {lines[1]!r}"
 ```
+
+```quiz
+? easy: What does this print?
+~~~python
+print("Sum:", 2 + 3)
+~~~
++ Sum: 5
+- Sum:5
+- Sum: 2 + 3
+> print() puts sep=" " between values, and 2 + 3 is evaluated before printing.
+? easy: Which character starts a comment in Python?
++ `#`
+- `//`
+- `--`
+- `/*`
+> Everything after `#` on a line is ignored (unless the `#` is inside a string).
+? medium: What does this print?
+~~~python
+print("a", "b", "c", sep="-")
+~~~
++ a-b-c
+- a b c
+- a-b-c-
+- abc
+> `sep` goes between values, never after the last one.
+? medium: What is the default value of print()'s `end` argument?
++ `"\n"`, a newline
+- `" "`, a space
+- `""`, nothing
+- `None`
+> That's why each print() starts a new line.
+? hard: What does this print?
+~~~python
+print("no newline", end="")
+print(" …continued")
+~~~
++ no newline …continued
+- no newline\n …continued
+- no newline…continued
+> `end=""` replaces the newline, so the next print continues on the same line.
+```

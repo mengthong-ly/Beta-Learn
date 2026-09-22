@@ -1,3 +1,5 @@
+import { parseQuiz, type Question } from "./quiz.ts"
+
 export type Lesson = {
   id: string
   title: string
@@ -10,6 +12,8 @@ export type Lesson = {
   starter: string
   solution?: string
   check?: string
+  /** easy→hard questions from the ```quiz fence */
+  quiz?: Question[]
 }
 
 /** Parses a lesson file: `---` frontmatter, markdown prose, and fenced
@@ -33,8 +37,13 @@ export function parseLesson(
     })
   )
   const blocks: Record<string, string> = {}
+  let quiz: string | undefined
   const body = raw
     .slice(fm?.[0].length ?? 0)
+    .replace(/```quiz\n([\s\S]*?)```\n?/, (_, src: string) => {
+      quiz = src
+      return ""
+    })
     .replace(
       /```\w+ (starter|solution|check)\n([\s\S]*?)```\n?/g,
       (_, block: string, code: string) => {
@@ -53,6 +62,7 @@ export function parseLesson(
     starter: blocks.starter ?? "",
     solution: blocks.solution,
     check: blocks.check,
+    quiz: quiz === undefined ? undefined : parseQuiz(quiz),
   }
 }
 

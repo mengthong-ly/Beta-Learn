@@ -1,3 +1,4 @@
+import { cookies } from "next/headers"
 import { notFound } from "next/navigation"
 
 import { Workspace } from "@/components/workspace"
@@ -17,8 +18,20 @@ export default async function CourseLayout({
   const { course } = await params
   const content = getCourse(course)
   if (!content) notFound()
+  // Pane state lives in cookies so the server renders it and a refresh doesn't jump.
+  const jar = await cookies()
+  const layout = (name: string) => {
+    try {
+      return JSON.parse(jar.get(name)?.value ?? "")
+    } catch {}
+  }
   return (
-    <Workspace course={course} {...content}>
+    <Workspace
+      course={course}
+      {...content}
+      sidebarOpen={jar.get("sidebar_state")?.value !== "false"}
+      layout={{ outer: layout("panes-outer"), inner: layout("panes-inner") }}
+    >
       {children}
     </Workspace>
   )

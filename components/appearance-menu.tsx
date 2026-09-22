@@ -19,6 +19,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import {
+  MASCOTS,
+  setMascot,
+  useMascot,
+  type MascotId,
+} from "@/components/mascot"
 
 export const FONTS = [
   {
@@ -59,6 +65,7 @@ function useFont() {
 export function AppearanceMenu() {
   const { theme, setTheme } = useTheme()
   const font = useFont()
+  const mascot = useMascot()
 
   return (
     <SidebarMenu>
@@ -102,6 +109,20 @@ export function AppearanceMenu() {
                 <DropdownMenuRadioItem value="system">
                   System
                 </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Mascot</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={mascot}
+                onValueChange={(v) => setMascot(v as MascotId)}
+              >
+                {MASCOTS.map((m) => (
+                  <DropdownMenuRadioItem key={m.id} value={m.id}>
+                    {m.label}
+                  </DropdownMenuRadioItem>
+                ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

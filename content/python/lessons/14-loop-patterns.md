@@ -130,3 +130,58 @@ assert summarize([10, 20]) == (0, 15, 20)
 assert summarize([50]) == (1, 50, 50), "50 counts as a pass."
 assert "sum(" not in __src__ and "max(" not in __src__, "Do it with a loop, without sum() or max()."
 ```
+
+```quiz
+? easy: In the accumulator pattern, what's the first step?
++ Create the accumulator variable (like `total = 0`) before the loop starts
+- Call `sum()` before the loop
+- Set the accumulator to the last item in the list
+- Use `continue` for every item that doesn't match
+> The variable has to exist before the loop so each pass can update it; it's created once, updated inside the loop, and used after.
+? easy: What does this print?
+~~~python
+prices = [3.0, 1.5, 2.5]
+total = 0
+for p in prices:
+    total += p
+print(total)
+~~~
++ 7.0
+- 3.0
+- [3.0, 1.5, 2.5]
+- 7
+> total starts at 0 and each price is added in turn: 0 + 3.0 + 1.5 + 2.5 is 7.0.
+? medium: What does this print?
+~~~python
+scores = [40, 92, 15, 77]
+best = scores[0]
+for s in scores:
+    if s > best:
+        best = s
+print(best)
+~~~
++ 92
+- 40
+- 77
+- 224
+> best starts as the first score and is only replaced when a strictly larger value shows up. 92 is the largest score in the list.
+? medium: What is a "flag" variable used for?
++ A boolean that records whether something was found, checked after the loop
+- A counter that always starts at 1
+- The name given to the loop variable
+- A value that only matters inside nested loops
+> A flag starts `False`, gets set to `True` once the thing you're looking for is found, and is read after the loop ends.
+? hard: What does this print?
+~~~python
+total = 0
+for i in range(1, 3):
+    for j in range(1, 4):
+        total += i * j
+print(total)
+~~~
++ 18
+- 6
+- 12
+- 24
+> The inner loop runs completely for each i. For i=1 it adds 1+2+3=6; for i=2 it adds 2+4+6=12. Both outer passes accumulate into the same total, giving 6+12=18.
+```

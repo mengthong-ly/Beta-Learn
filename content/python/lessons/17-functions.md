@@ -81,3 +81,56 @@ for n, w in want.items():
     got = fizzbuzz(n)
     assert got == w, f"fizzbuzz({n}) should return {w!r}, got {got!r}"
 ```
+
+```quiz
+? easy: What does a function return if it has no `return` statement?
++ None
+- 0
+- An empty string
+- It raises an error
+> A function without a `return` implicitly returns `None` when it finishes.
+? easy: What does this print?
+~~~python
+def greet(name):
+    return f"Hi, {name}!"
+
+print(greet("Kai"))
+~~~
++ Hi, Kai!
+- Hi, name!
+- Hi, {name}!
+- None
+> greet returns the f-string with `name` substituted, and print shows that returned value.
+? medium: What does this print?
+~~~python
+def power(base, exp=3):
+    return base ** exp
+
+print(power(2), power(2, exp=4))
+~~~
++ 8 16
+- 8 8
+- 6 8
+- 9 16
+> `exp` defaults to 3, so power(2) is 2**3 = 8. Passing `exp=4` by keyword overrides the default, giving 2**4 = 16.
+? medium: What does `some_function.__doc__` give you?
++ The docstring: the string literal that's the first line of the function's body
+- The function's full source code
+- The function's return value from its last call
+- The function's name, as a string
+> A docstring is just a string as the first statement in the function; Python stores it on `__doc__` for tools (and humans) to read.
+? hard: What does this print?
+~~~python
+def collect(x, bucket=[]):
+    bucket.append(x)
+    return bucket
+
+print(collect(1))
+print(collect(2))
+~~~
++ [1]\n[1, 2]
+- [1]\n[2]
+- []\n[]
+- [1, 2]\n[1, 2]
+> The default list `[]` is created once, when the function is defined, and reused on every call that doesn't pass its own bucket. The second call appends 2 onto the same list that already has 1 in it.
+```

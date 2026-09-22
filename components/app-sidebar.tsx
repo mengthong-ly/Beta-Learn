@@ -8,13 +8,17 @@ import {
   CheckIcon,
   ChevronRightIcon,
   CodeIcon,
+  ListChecksIcon,
   SearchIcon,
   MonitorCogIcon,
+  TrophyIcon,
 } from "lucide-react"
 
 import { AppearanceMenu } from "@/components/appearance-menu"
 import { CourseSwitcher } from "@/components/course-switcher"
 import { HistoryList } from "@/components/history-list"
+import { ProgressRing } from "@/components/progress-ring"
+import { StatsBadge } from "@/components/stats-badge"
 import {
   Collapsible,
   CollapsibleContent,
@@ -41,6 +45,7 @@ import {
 } from "@/components/ui/sidebar"
 import { docHref, docKey, useWorkspace } from "@/components/workspace-context"
 import { db } from "@/lib/db"
+import { quizHref, quizStoreKey, sections as allSections } from "@/lib/docs"
 import { cn } from "@/lib/utils"
 
 const label = "text-[11px] font-semibold tracking-[1px] uppercase"
@@ -66,17 +71,28 @@ export function AppSidebar({
     [course],
     []
   )
+  const passed = useLiveQuery(
+    () =>
+      db.quizzes
+        .where("key")
+        .startsWith(`${course}/`)
+        .filter((q) => !!q.passedAt)
+        .primaryKeys(),
+    [course],
+    [] as string[]
+  )
+  const hasQuizzes = lessons.some((l) => l.quiz?.length)
 
-  const sections = [...new Set(lessons.map((l) => l.section))].map((name) => ({
-    name,
-    lessons: lessons.filter((l) => l.section === name),
-  }))
+  const sections = allSections(lessons)
   const guideOpen = current === "guide" || current.startsWith("guide:")
 
   // Sections open/close freely, but the current doc's section always opens.
   const currentSection = guideOpen
     ? "Guide Book"
-    : sections.find((s) => s.lessons.some((l) => l.id === current))?.name
+    : sections.find(
+        (s) =>
+          s.lessons.some((l) => l.id === current) || current === `quiz:${s.id}`
+      )?.name
   const [open, setOpen] = useState<string[]>([])
   const [seen, setSeen] = useState<string>()
   if (currentSection !== seen) {
@@ -91,6 +107,7 @@ export function AppSidebar({
     <Sidebar>
       <SidebarHeader>
         <CourseSwitcher course={course} />
+        <StatsBadge />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={onSearch}>
@@ -144,7 +161,10 @@ export function AppSidebar({
                           count === s.lessons.length && "text-success"
                         )}
                       >
-                        {count}/{s.lessons.length}
+                        <span className="flex items-center gap-1.5">
+                          <ProgressRing value={count} max={s.lessons.length} />
+                          {count}/{s.lessons.length}
+                        </span>
                       </SidebarMenuBadge>
                       <CollapsibleContent>
                         <SidebarMenuSub>
@@ -165,12 +185,46 @@ export function AppSidebar({
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}
+                          {s.lessons.some((l) => l.quiz?.length) && (
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={current === `quiz:${s.id}`}
+                              >
+                                <Link href={quizHref(course, s.id)}>
+                                  <ListChecksIcon />
+                                  <span>Section quiz</span>
+                                  {passed.includes(
+                                    quizStoreKey(course, s.id)
+                                  ) && (
+                                    <CheckIcon className="ml-auto text-success" />
+                                  )}
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )}
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
                 )
               })}
+              {hasQuizzes && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={current === "quiz:final"}
+                  >
+                    <Link href={quizHref(course, "final")}>
+                      <TrophyIcon />
+                      <span>Final exam</span>
+                      {passed.includes(quizStoreKey(course, "final")) && (
+                        <CheckIcon className="ml-auto text-success" />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

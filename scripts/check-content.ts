@@ -142,11 +142,18 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
     }
     console.log(`\n${c.id}/${dir}`)
     for (const file of files) {
-      const l = parseLesson(
-        file,
-        readFileSync(new URL(file, folder), "utf8"),
-        dir === "lessons" ? "lesson" : "guide"
-      )
+      let l: ReturnType<typeof parseLesson>
+      try {
+        l = parseLesson(
+          file,
+          readFileSync(new URL(file, folder), "utf8"),
+          dir === "lessons" ? "lesson" : "guide"
+        )
+      } catch (e) {
+        console.log(`✗ ${file}  → ${(e as Error).message}`)
+        failed++
+        continue
+      }
       const problems: string[] = []
       if (dir === "lessons") {
         if (!l.starter.trim()) problems.push("missing starter")
@@ -169,6 +176,23 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
           problems.push(`example fails: ${r.error.split("\n")[0]}\n      ${code.split("\n")[0]}`)
         if (!r.error && marksError(code))
           problems.push(`example marked "error!" didn't fail: ${code.split("\n")[0]}`)
+      }
+      // "What does this print?": the + answer must be the real output.
+      for (const q of l.quiz ?? []) {
+        if (!q.code) continue
+        if (c.runtime !== "pyodide") {
+          // ponytail: only Python's check has __stdout__ wired here; add per-runtime
+          // output checks (PHP $output, TS/Dart output) when those courses get quizzes.
+          problems.push("quiz code questions are only verified for Python so far")
+          break
+        }
+        const want = q.options[q.answer].trim()
+        const r = await execute(
+          q.code,
+          `assert __stdout__.strip() == ${JSON.stringify(want)}, "printed " + repr(__stdout__.strip())`
+        )
+        if (!r.check?.pass)
+          problems.push(`quiz answer wrong for "${q.prompt}": ${r.check?.message}`)
       }
       console.log(
         `${problems.length ? "✗" : "✓"} ${file}${problems.length ? "  → " + problems.join("; ") : ""}`
