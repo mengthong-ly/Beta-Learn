@@ -42,3 +42,24 @@ export function findDoc(
   if (key.startsWith("guide:")) return guide.find((g) => g.id === key.slice(6))
   return lessons.find((l) => l.id === key)
 }
+
+/** Lessons grouped by `section:` frontmatter. id is its number: "2 · Strings & Lists" → "2". */
+export const sections = (lessons: Lesson[]) =>
+  [...new Set(lessons.map((l) => l.section))].map((name) => ({
+    id: name.split(" ·")[0],
+    name,
+    lessons: lessons.filter((l) => l.section === name),
+  }))
+
+/** The editor's doc on a quiz page: a scratchpad with its own draft ("python/quiz:2"). */
+export const quizDoc = (id: string): Lesson => ({
+  ...playground,
+  id: `quiz:${id}`,
+  title: id === "final" ? "Final exam" : `Section ${id} quiz`,
+  section: "Quizzes",
+})
+
+/** id is a section id ("2") or "final". */
+export const quizHref = (course: string, id: string) => `/${course}/quiz/${id}`
+export const quizStoreKey = (course: string, id: string) =>
+  storageKey(course, id === "final" ? "final" : `section:${id}`)

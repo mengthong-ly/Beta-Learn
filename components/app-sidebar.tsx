@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/sidebar"
 import { docHref, docKey, useWorkspace } from "@/components/workspace-context"
 import { db } from "@/lib/db"
+import { sections as allSections } from "@/lib/docs"
 import { cn } from "@/lib/utils"
 
 const label = "text-[11px] font-semibold tracking-[1px] uppercase"
@@ -67,10 +68,7 @@ export function AppSidebar({
     []
   )
 
-  const sections = [...new Set(lessons.map((l) => l.section))].map((name) => ({
-    name,
-    lessons: lessons.filter((l) => l.section === name),
-  }))
+  const sections = allSections(lessons)
   const guideOpen = current === "guide" || current.startsWith("guide:")
 
   // Sections open/close freely, but the current doc's section always opens.
