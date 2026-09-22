@@ -9,7 +9,7 @@ export default function SetupPage() {
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 py-10 sm:px-8 sm:py-16">
       <Link
-        href="/"
+        href="/courses"
         className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" /> Courses

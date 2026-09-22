@@ -1,60 +1,100 @@
 import Link from "next/link"
-import { MonitorCogIcon } from "lucide-react"
+import { ArrowRightIcon, SparklesIcon } from "lucide-react"
 
-import { CourseCard } from "@/components/course-card"
-import { getCourse } from "@/lib/content"
-import { Separator } from "@/components/ui/separator"
-import { courses, isExtra, type Course } from "@/lib/courses"
+import { Button } from "@/components/ui/button"
+import { courses } from "@/lib/courses"
 
-function CourseGrid({ list }: { list: Course[] }) {
+// Diagonal light beams from the top right: [left %, width px, opacity, delay s].
+const RAYS = [
+  [52, 240, 0.22, 0],
+  [64, 90, 0.35, 1.5],
+  [72, 160, 0.18, 3],
+  [82, 60, 0.3, 0.8],
+  [90, 260, 0.14, 2.2],
+] as const
+
+export default function Landing() {
   return (
-    <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-      {list.map((c) => {
-        const { lessons, guide } = getCourse(c.id)!
-        return (
-          <li key={c.id}>
-            <CourseCard
-              course={c}
-              lessonIds={lessons.map((l) => l.id)}
-              guideCount={guide.length}
-            />
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-export default function Home() {
-  return (
-    <main className="mx-auto flex min-h-svh w-full max-w-4xl flex-col px-4 py-10 sm:px-8 sm:py-16">
-      <header className="flex items-center gap-2">
-        <span className="flex size-7 items-center justify-center rounded-md bg-foreground font-mono text-xs font-bold text-background">
-          Th
-        </span>
-        <span className="font-semibold">ThongLearn</span>
-        <Link
-          href="/setup"
-          className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <MonitorCogIcon className="size-4" /> Setup
-        </Link>
-      </header>
-      <h1 className="mt-12 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-        Pick a course
-      </h1>
-      <p className="mt-2 text-muted-foreground">
-        Each course has its own lessons, guide book and playground. Your
-        progress is saved in this browser.
-      </p>
-      <CourseGrid list={courses.filter((c) => !isExtra(c))} />
-      <div className="mt-12 flex items-center gap-3">
-        <h2 className="shrink-0 text-sm font-medium text-muted-foreground">
-          Extra courses
-        </h2>
-        <Separator className="flex-1" />
+    <main className="dark relative isolate flex min-h-svh flex-col overflow-hidden bg-[#08080a] text-foreground">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-40 right-[-10%] size-[60rem] rounded-full bg-white/[0.04] blur-3xl" />
+        {RAYS.map(([left, width, opacity, delay]) => (
+          <span
+            key={left}
+            className="animate-ray absolute -top-1/4 h-[150%] origin-top rotate-[28deg] bg-gradient-to-b from-white via-white/40 to-transparent blur-xl"
+            style={{ left: `${left}%`, width, "--o": opacity, animationDelay: `${delay}s` } as React.CSSProperties}
+          />
+        ))}
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#08080a] to-transparent" />
       </div>
-      <CourseGrid list={courses.filter(isExtra)} />
+
+      <header className="mx-auto flex w-full max-w-6xl items-center gap-6 px-4 py-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
+          <span className="flex size-7 items-center justify-center rounded-md bg-foreground font-mono text-xs font-bold text-background">
+            Th
+          </span>
+          <span className="hidden sm:inline">ThongLearn</span>
+        </Link>
+        <nav className="ml-auto flex items-center gap-1 text-sm text-muted-foreground">
+          <Link href="/courses" className="rounded-full px-3 py-1.5 transition-colors hover:text-foreground">
+            Courses
+          </Link>
+          <Link href="/python/playground" className="hidden rounded-full px-3 py-1.5 transition-colors hover:text-foreground sm:block">
+            Playground
+          </Link>
+          <Link href="/setup" className="rounded-full px-3 py-1.5 transition-colors hover:text-foreground">
+            Setup
+          </Link>
+        </nav>
+      </header>
+
+      <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+        <span className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
+          <SparklesIcon className="size-3.5" />
+          Python runs right in your browser
+        </span>
+        <h1 className="mt-6 text-4xl font-medium tracking-tight text-balance sm:text-6xl lg:text-7xl">
+          Learn to code by running real code
+        </h1>
+        <p className="mt-5 max-w-xl text-base text-pretty text-muted-foreground sm:text-lg">
+          Short lessons, a guide book and a live editor for Python, PHP,
+          TypeScript, React, Flutter and more. Your progress stays in this
+          browser.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Button asChild size="lg" className="rounded-full bg-white text-black hover:bg-white/90">
+            <Link href="/courses">
+              Start learning <ArrowRightIcon />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline" className="rounded-full">
+            <Link href="/python/playground">Open playground</Link>
+          </Button>
+        </div>
+      </section>
+
+      <footer className="border-t border-white/10">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 py-5 sm:justify-between sm:px-8">
+          <span className="hidden font-mono text-sm text-muted-foreground md:block">
+            {`/* ${courses.length} courses */`}
+          </span>
+          <ul className="flex flex-wrap justify-center gap-2">
+            {courses.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/${c.id}`}
+                  className="flex items-center gap-2 rounded-full border border-white/10 py-1 pr-3 pl-1 text-sm text-muted-foreground transition-colors hover:border-white/25 hover:text-foreground"
+                >
+                  <span className="flex size-6 items-center justify-center rounded-full bg-white/10 font-mono text-[10px] font-bold text-foreground">
+                    {c.mark}
+                  </span>
+                  {c.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </footer>
     </main>
   )
 }

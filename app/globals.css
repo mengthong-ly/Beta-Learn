@@ -274,3 +274,19 @@
     transition: none;
   }
 }
+
+/* Landing light rays (app/page.tsx). --o is each beam's peak opacity. */
+.animate-ray {
+  opacity: var(--o);
+  animation: ray 7s ease-in-out infinite;
+}
+@keyframes ray {
+  50% {
+    opacity: calc(var(--o) * 0.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-ray {
+    animation: none;
+  }
+}

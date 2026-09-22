@@ -69,7 +69,7 @@ export function CourseSwitcher({ course }: { course: string }) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/">
+              <Link href="/courses">
                 <LayoutGridIcon />
                 All courses
               </Link>

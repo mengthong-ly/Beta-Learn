@@ -81,7 +81,8 @@ function BehindTheScenes({ children }: { children: React.ReactNode }) {
 function Pager({ doc }: { doc: Lesson }) {
   const { course, lessons, guide } = useWorkspace()
   const list = doc.kind === "lesson" ? lessons : doc.id === "guide" ? [] : guide
-  const i = list.indexOf(doc)
+  // Match by id: after client navigation `doc` is a fresh RSC object, not the one in `list`.
+  const i = list.findIndex((d) => d.id === doc.id)
   if (i < 0) return null
   const links = [
     { d: list[i - 1], label: "Previous", Icon: ArrowLeftIcon },
