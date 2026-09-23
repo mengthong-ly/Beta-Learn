@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { LessonSteps, ReadSentinel } from "@/components/lesson-steps"
+import { PredictOutput } from "@/components/predict-output"
 import { Quiz } from "@/components/quiz"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ import {
 import { docHref, storageKey, useWorkspace } from "@/components/workspace-context"
 import { findCourse } from "@/lib/courses"
 import type { Lesson } from "@/lib/lesson-parser"
+import { useCanRun } from "@/lib/runner"
 import { cn } from "@/lib/utils"
 
 type HastNode = {
@@ -158,6 +160,7 @@ function GuideContents() {
 export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
   const { course, done, tryCode } = useWorkspace()
   const courseLang = findCourse(course).lang
+  const canRun = useCanRun(findCourse(course))
 
   const components: Components = {
     h2: ({ children }) => (
@@ -267,6 +270,9 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
           <pre className="overflow-x-auto px-4 pb-4 font-mono text-[13px] leading-relaxed text-foreground">
             {code}
           </pre>
+          {!canRun && lang === courseLang && doc.outputs?.[code.trim()] && (
+            <PredictOutput output={doc.outputs[code.trim()]} />
+          )}
         </div>
       )
     },

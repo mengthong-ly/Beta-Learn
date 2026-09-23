@@ -1,5 +1,8 @@
 import { parseQuiz, type Question } from "./quiz.ts"
 
+/** What a program printed, recorded for courses the website can't run (lib/outputs.ts). */
+export type Output = { lines: { kind: "out" | "err"; text: string }[]; error?: string }
+
 export type Lesson = {
   id: string
   title: string
@@ -14,6 +17,8 @@ export type Lesson = {
   check?: string
   /** easy→hard questions from the ```quiz fence */
   quiz?: Question[]
+  /** recorded output of the examples and the solution, keyed by their trimmed code */
+  outputs?: Record<string, Output>
 }
 
 /** Parses a lesson file: `---` frontmatter, markdown prose, and fenced

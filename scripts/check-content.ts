@@ -12,11 +12,12 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 
 import { courses, type Course } from "../lib/courses.ts"
-import { parseLesson } from "../lib/lesson-parser.ts"
+import { parseLesson, type Output } from "../lib/lesson-parser.ts"
+import { examples as examplesIn, outputKey, readOutputs, writeOutputs } from "../lib/outputs.ts"
 import { runLocal, type LocalCourse } from "../lib/local-runner.ts"
 import { cleanTraceback } from "../public/traceback.js"
 
-type Result = { error?: string; check?: { pass: boolean; message?: string } }
+type Result = { error?: string; check?: { pass: boolean; message?: string }; lines?: Output["lines"] }
 type Execute = (code: string, check?: string) => Promise<Result>
 
 // --- Python: Pyodide in Node, set up exactly like public/python.worker.js ---
@@ -124,11 +125,24 @@ async function executor(c: Course): Promise<Execute> {
   return local(c.id as LocalCourse)
 }
 
-const only = process.argv.slice(2)
+// --record saves each example's and solution's real output for the courses the website can't run
+// (Flutter prints nothing worth showing), so write-only lessons can show it.
+const record = process.argv.includes("--record")
+const only = process.argv.slice(2).filter((a) => a !== "--record")
 let failed = 0
 for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
   const execute = await executor(c)
-  const examplesRe = new RegExp("```" + c.lang + "\\n([\\s\\S]*?)```", "g")
+  const recorded = c.runtime === "local" && c.id !== "flutter"
+  const outputs = recorded ? readOutputs(c.id) : {}
+  const fresh: Record<string, Output> = {}
+  /** Records r (or runs code for it) under --record; otherwise reports a missing recording. */
+  const note = async (code: string, r?: Result) => {
+    if (!recorded) return
+    const k = outputKey(code)
+    if (!record) return outputs[k] ? undefined : `no recorded output: run npm run check:content -- --record ${c.id}`
+    r ??= await execute(code)
+    fresh[k] = { lines: r.lines ?? [], ...(r.error && { error: r.error }) }
+  }
   const marksError = (code: string) => /(#|\/\/) error!/.test(code)
   for (const dir of ["lessons", "guide"] as const) {
     const folder = new URL(`../content/${c.id}/${dir}/`, import.meta.url)
@@ -165,9 +179,11 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
           const start = await execute(l.starter, l.check)
           if (start.check?.pass && start.check.message !== "unverified")
             problems.push("starter already passes the check")
+          const missing = await note(l.solution) // run again without the check for clean output
+          if (missing) problems.push(missing)
         }
       } else if (!l.summary) problems.push("missing summary")
-      const examples = [...l.body.matchAll(examplesRe)].map((m) => m[1])
+      const examples = examplesIn(l.body, c.lang)
       if (dir === "guide" && examples.length < 3)
         problems.push(`only ${examples.length} examples`)
       for (const code of examples) {
@@ -176,6 +192,8 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
           problems.push(`example fails: ${r.error.split("\n")[0]}\n      ${code.split("\n")[0]}`)
         if (!r.error && marksError(code))
           problems.push(`example marked "error!" didn't fail: ${code.split("\n")[0]}`)
+        const missing = await note(code, r)
+        if (missing) problems.push(missing)
       }
       // "What does this print?": the + answer must be the real output.
       for (const q of l.quiz ?? []) {
@@ -206,6 +224,7 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
       failed += problems.length ? 1 : 0
     }
   }
+  if (record && recorded) writeOutputs(c.id, fresh)
 }
 console.log(failed ? `\n${failed} file(s) failed` : "\nAll content passes")
 process.exit(failed ? 1 : 0)

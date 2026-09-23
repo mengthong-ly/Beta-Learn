@@ -32,6 +32,7 @@ import { InspectPane } from "@/components/inspect-pane"
 import { Mascot } from "@/components/mascot"
 import { OutputPane } from "@/components/output-pane"
 import { PreviewPane } from "@/components/preview-pane"
+import { SolutionCompare } from "@/components/solution-compare"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -204,6 +205,7 @@ export function Workspace({
   const state = useRunner()
   const [code, setCode] = useState("")
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [comparing, setComparing] = useState(false)
   const [tab, setTab] = useState("output")
   const [mobileTab, setMobileTab] = useState("read")
   // A line picked in the Inspect tab; cleared whenever a new run starts.
@@ -367,16 +369,29 @@ export function Workspace({
           </Button>
         </Tip>
         {doc.solution && (
-          <Tip label="Show solution">
+          <Tip label={canRun ? "Show solution" : "Compare with the solution"}>
             <Button
               size="icon-sm"
               variant="ghost"
-              aria-label="Show solution"
-              onClick={() => edit(doc.solution!)}
+              aria-label={canRun ? "Show solution" : "Compare with the solution"}
+              onClick={() => (canRun ? edit(doc.solution!) : setComparing(true))}
             >
               <LightbulbIcon />
             </Button>
           </Tip>
+        )}
+        {!canRun && doc.solution && (
+          <SolutionCompare
+            doc={doc}
+            code={code}
+            language={c.lang}
+            open={comparing}
+            onOpenChange={setComparing}
+            onLoad={() => {
+              edit(doc.solution!)
+              setComparing(false)
+            }}
+          />
         )}
         {canRun && doc.check && (
           <Tip label="Run and check the challenge">
