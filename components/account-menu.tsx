@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { LogInIcon, LogOutIcon, UserIcon } from "lucide-react"
-
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ChevronsUpDownIcon,
+  LogInIcon,
+  LogOutIcon,
+  MonitorCogIcon,
+  UserIcon,
+} from "lucide-react"
+
+import { AppearanceMenu } from "@/components/appearance-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,157 +21,99 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
-import { Spinner } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth-client"
 
-/** Sidebar footer entry: "Sign in" when signed out, the account menu when signed in. */
+/** Sidebar footer: the account row, which opens a menu with setup, appearance and sign in/out. */
 export function AccountMenu() {
   const { data, isPending } = authClient.useSession()
-  const [open, setOpen] = useState(false)
-  if (isPending) return null
+  const pathname = usePathname()
+  const { isMobile } = useSidebar()
+  const name = data ? data.user.name || data.user.email : "Guest"
+  // The same avatar + name block heads both the row and the open menu.
+  const who = (
+    <>
+      <Avatar className="rounded-lg after:rounded-lg">
+        {data?.user.image && (
+          <AvatarImage
+            src={data.user.image}
+            alt={name}
+            className="rounded-lg"
+          />
+        )}
+        <AvatarFallback className="rounded-lg">
+          {data ? name[0].toUpperCase() : <UserIcon className="size-4" />}
+        </AvatarFallback>
+      </Avatar>
+      <span className="grid flex-1 text-left text-sm leading-tight">
+        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {data ? data.user.email : "Not signed in"}
+        </span>
+      </span>
+    </>
+  )
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        {data ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton>
-                <UserIcon />
-                <span className="truncate">{data.user.email}</span>
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="start" className="w-56">
-              <DropdownMenuLabel className="font-normal text-muted-foreground">
-                Progress syncs to this account
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onSelect={() => authClient.signOut()}>
-                  <LogOutIcon />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <>
-            <SidebarMenuButton onClick={() => setOpen(true)}>
-              <LogInIcon />
-              <span>Sign in to save progress</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              {who}
+              <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
-            <AuthDialog open={open} onOpenChange={setOpen} />
-          </>
-        )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            sideOffset={4}
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-64 rounded-lg"
+          >
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-foreground">
+                {who}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href="/setup">
+                  <MonitorCogIcon />
+                  Setup
+                </Link>
+              </DropdownMenuItem>
+              <AppearanceMenu />
+            </DropdownMenuGroup>
+            {!isPending && (
+              <>
+                <DropdownMenuSeparator />
+                {data ? (
+                  <DropdownMenuItem onSelect={() => authClient.signOut()}>
+                    <LogOutIcon />
+                    Log out
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/login?next=${encodeURIComponent(pathname)}`}>
+                      <LogInIcon />
+                      Sign in to save progress
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
-}
-
-function AuthDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState(false)
-
-  const submit = (register: boolean) => async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const f = new FormData(e.currentTarget)
-    const email = String(f.get("email"))
-    const password = String(f.get("password"))
-    setBusy(true)
-    setError(undefined)
-    const { error } = register
-      ? await authClient.signUp.email({ name: String(f.get("name")), email, password })
-      : await authClient.signIn.email({ email, password })
-    setBusy(false)
-    if (error) setError(error.message ?? "Something went wrong. Try again.")
-    else onOpenChange(false)
-  }
-
-  const github = async () => {
-    setError(undefined)
-    const { error } = await authClient.signIn.social({
-      provider: "github",
-      callbackURL: window.location.href,
-    })
-    // Better Auth's messages here ("Provider not found") are meant for developers.
-    if (error) setError("GitHub sign-in isn't available right now.")
-  }
-
-  const form = (register: boolean) => {
-    const id = register ? "register" : "sign-in"
-    return (
-      <form onSubmit={submit(register)}>
-        <FieldGroup>
-          {register && (
-            <Field>
-              <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
-              <Input id={`${id}-name`} name="name" autoComplete="name" required />
-            </Field>
-          )}
-          <Field>
-            <FieldLabel htmlFor={`${id}-email`}>Email</FieldLabel>
-            <Input id={`${id}-email`} name="email" type="email" autoComplete="email" required />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={`${id}-password`}>Password</FieldLabel>
-            <Input
-              id={`${id}-password`}
-              name="password"
-              type="password"
-              autoComplete={register ? "new-password" : "current-password"}
-              minLength={8}
-              required
-            />
-          </Field>
-          {error && (
-            <Alert variant="destructive" role="alert">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <Button type="submit" disabled={busy}>
-            {busy && <Spinner data-icon="inline-start" />}
-            {register ? "Create account" : "Sign in"}
-          </Button>
-        </FieldGroup>
-      </form>
-    )
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Save your progress</DialogTitle>
-          <DialogDescription>
-            Optional. Progress on this device is kept and merged into your account.
-          </DialogDescription>
-        </DialogHeader>
-        <Tabs defaultValue="sign-in" onValueChange={() => setError(undefined)}>
-          <TabsList className="w-full">
-            <TabsTrigger value="sign-in">Sign in</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
-          <TabsContent value="sign-in" className="pt-4">
-            {form(false)}
-          </TabsContent>
-          <TabsContent value="register" className="pt-4">
-            {form(true)}
-          </TabsContent>
-        </Tabs>
-        <Button variant="outline" onClick={github}>
-          Continue with GitHub
-        </Button>
-      </DialogContent>
-    </Dialog>
   )
 }

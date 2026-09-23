@@ -16,7 +16,7 @@ Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, F
 | Content         | Markdown in `content/lessons/*.md` and `content/guide/*.md`, parsed by `lib/lesson-parser.ts`, `lib/content.ts`, `lib/docs.ts` |
 | Design docs     | `.design/thonglearn/`                                                                          |
 
-Commands: `npm run dev` (turns on the local runner and binds to 127.0.0.1), `npm run setup:runtimes` (run once: creates the TypeScript 7, Laravel 13 and Flutter sandboxes in `runtimes/`), `npm run lint`, `npm run typecheck`, `npm run check:content [-- course…]` (runs every lesson and guide example for real), `npm run check:runner`, `npm run build`.
+Commands: `npm run dev` (turns on the local runner and binds to 127.0.0.1), `npm run dev:hosted` (same, and lets the hosted site call the runner), `npm run setup:runtimes` (run once: creates the TypeScript 7, Laravel 13 and Flutter sandboxes in `runtimes/`), `npm run lint`, `npm run typecheck`, `npm run check:content [-- course…]` (runs every lesson and guide example for real), `npm run check:runner`, `npm run build`.
 
 Native apps (Capacitor 8, `ios/` and `android/`): the apps load the running Next.js server from `server.url` in `capacitor.config.ts` (default is the dev server; set `CAP_SERVER_URL` for release). Run `npx cap sync` after changing config or plugins, then `npx cap open ios|android`. On Android, run `adb reverse tcp:3000 tcp:3000` first.
 

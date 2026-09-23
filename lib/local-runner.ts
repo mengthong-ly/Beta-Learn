@@ -1,11 +1,14 @@
 // Runs lesson code with the learner's own toolchains (c++, dart, flutter, php, tsc/node).
 // Used by app/api/run (opt-in, see docs/adr/0001-local-runner.md) and scripts/check-content.ts.
-// Node stdlib only, no path aliases, erasable TypeScript only: Node runs this file directly.
+// Every lesson process runs in the OS sandbox (lib/sandbox.ts) with a scrubbed env.
+// No path aliases, erasable TypeScript only: Node runs this file directly.
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { homedir, tmpdir } from "node:os"
 import path from "node:path"
+
+import { cleanEnv, initSandbox, sandboxDisabled, sandboxed, sandboxProblem } from "./sandbox.ts"
 
 export type Line = { kind: "out" | "err"; text: string }
 export type LocalResult = {
@@ -50,15 +53,36 @@ const TIMEOUT: Record<LocalCourse, number> = {
 
 type Proc = { code: number | null; stdout: string; stderr: string; timedOut: boolean }
 
-export function runProcess(
+/**
+ * Runs a process with a scrubbed env. With `sandbox` (the only paths it may write), it runs
+ * inside the OS sandbox (lib/sandbox.ts); if that can't start, nothing runs.
+ */
+export async function runProcess(
   cmd: string,
   args: string[],
-  opts: { cwd: string; timeout: number; env?: Record<string, string>; signal?: AbortSignal }
+  opts: {
+    cwd: string
+    timeout: number
+    env?: Record<string, string>
+    signal?: AbortSignal
+    sandbox?: string[]
+    localNetwork?: boolean
+  }
 ): Promise<Proc> {
+  if (opts.sandbox) {
+    try {
+      if (!sandboxDisabled()) {
+        await initSandbox(RUNTIMES)
+        ;[cmd, ...args] = await sandboxed(cmd, args, opts.sandbox, opts.localNetwork)
+      }
+    } catch (e) {
+      return { code: 1, stdout: "", stderr: e instanceof Error ? e.message : String(e), timedOut: false }
+    }
+  }
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
-      env: { ...process.env, ...opts.env },
+      env: cleanEnv(opts.env),
       detached: true, // own process group, so a kill takes its children too
       stdio: ["ignore", "pipe", "pipe"],
     })
@@ -182,6 +206,8 @@ async function runPhp(course: "php" | "laravel", code: string, check: string | u
       cwd: dir,
       timeout: TIMEOUT[course],
       signal,
+      // Laravel writes compiled views and caches into its sandbox project.
+      sandbox: course === "php" ? [dir] : [dir, path.join(LARAVEL, "storage"), path.join(LARAVEL, "bootstrap/cache")],
       env:
         course === "laravel"
           ? {
@@ -250,13 +276,14 @@ async function runTypeScript(code: string, check: string | undefined, signal?: A
     )
     const started = Date.now()
     const lineRe = /main\.ts[(:](\d+)/
-    const tsc = await runProcess(TSC, ["-p", ".", "--pretty", "false"], { cwd: dir, timeout: TIMEOUT.typescript, signal })
+    const tsc = await runProcess(TSC, ["-p", ".", "--pretty", "false"], { cwd: dir, timeout: TIMEOUT.typescript, signal, sandbox: [dir] })
     if (tsc.code !== 0)
       return settle({ ...tsc, stderr: tsc.stdout + tsc.stderr, stdout: "" }, started, dir, "main.ts", lineRe)
     const r = await runProcess("node", [check ? "out/check.js" : "out/main.js"], {
       cwd: dir,
       timeout: TIMEOUT.typescript,
       signal,
+      sandbox: [dir],
     })
     // Runtime errors point at the emitted .js; its lines match main.ts closely enough for a hint.
     return settle(r, started, dir, "main.ts", /main\.[jt]s:(\d+)/)
@@ -319,6 +346,7 @@ async function runCpp(code: string, check: string | undefined, signal?: AbortSig
       cwd: dir,
       timeout: TIMEOUT.cpp,
       signal,
+      sandbox: [dir],
     })
     const asMain = (s: string) => s.replaceAll("lesson.hpp", "main.cpp")
     const lineRe = /main\.cpp:(\d+)/
@@ -330,12 +358,13 @@ async function runCpp(code: string, check: string | undefined, signal?: AbortSig
         "main.cpp",
         lineRe
       )
-    const r = await runProcess(path.join(dir, "lesson"), [], { cwd: dir, timeout: TIMEOUT.cpp, signal })
+    const r = await runProcess(path.join(dir, "lesson"), [], { cwd: dir, timeout: TIMEOUT.cpp, signal, sandbox: [dir] })
     return settle({ ...r, stderr: asMain(r.stderr) }, started, dir, "main.cpp", lineRe)
   })
 }
 
-// --- Dart: `dart run`; the check imports the lesson as a library. ---
+// --- Dart: the VM runs the file directly (no `dart run`, whose telemetry writes to ~/.dart-tool);
+// the check imports the lesson as a library. ---
 const DART_CHECK = (check: string) => `import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -374,10 +403,11 @@ async function runDart(code: string, check: string | undefined, signal?: AbortSi
     await writeFile(path.join(dir, "main.dart"), code)
     if (check) await writeFile(path.join(dir, "check.dart"), DART_CHECK(check))
     const started = Date.now()
-    const r = await runProcess("dart", ["run", "--enable-asserts", check ? "check.dart" : "main.dart"], {
+    const r = await runProcess("dart", ["--enable-asserts", check ? "check.dart" : "main.dart"], {
       cwd: dir,
       timeout: TIMEOUT.dart,
       signal,
+      sandbox: [dir],
     })
     return settle(r, started, dir, "main.dart", /main\.dart:(\d+)/)
   })
@@ -389,6 +419,18 @@ export function serially<T>(fn: () => Promise<T>): Promise<T> {
   const next = flutterQueue.then(fn, fn)
   flutterQueue = next.catch(() => undefined)
   return next
+}
+
+// Writes only to the shared project and a private HOME for the tool's own state (~/.config/flutter,
+// ~/.dart-tool…); the lock env var keeps the SDK's bin/cache read-only.
+const FLUTTER_HOME = path.join(RUNTIMES, ".flutter-home")
+const FLUTTER_SANDBOX = {
+  sandbox: [FLUTTER_HOME, FLUTTER],
+  env: {
+    FLUTTER_ALREADY_LOCKED: "true",
+    HOME: FLUTTER_HOME,
+    PUB_CACHE: process.env.PUB_CACHE ?? path.join(homedir(), ".pub-cache"),
+  },
 }
 
 /** A check is a widget-test body; without one, a smoke test just pumps the app. */
@@ -412,6 +454,7 @@ async function runFlutter(
   signal?: AbortSignal
 ): Promise<LocalResult> {
   return serially(async () => {
+    await mkdir(FLUTTER_HOME, { recursive: true })
     const main = path.join(FLUTTER, "lib/main.dart")
     const previous = existsSync(main) ? await readFile(main, "utf8") : ""
     await writeFile(main, code)
@@ -423,6 +466,8 @@ async function runFlutter(
         cwd: FLUTTER,
         timeout: TIMEOUT.flutter,
         signal,
+        ...FLUTTER_SANDBOX,
+        localNetwork: true, // the test device listens on localhost
       })
       const res = settle(r, started, FLUTTER, "lib/main.dart", lineRe)
       if (!check || /lib\/main\.dart:\d+:\d+: Error/.test(r.stdout + r.stderr)) return res
@@ -438,7 +483,7 @@ async function runFlutter(
     const r = await runProcess(
       "flutter",
       ["build", "web", "--no-pub", "--debug", "--base-href", "/api/flutter/"],
-      { cwd: FLUTTER, timeout: TIMEOUT.flutter, signal }
+      { cwd: FLUTTER, timeout: TIMEOUT.flutter, signal, ...FLUTTER_SANDBOX }
     )
     const res = settle(r, started, FLUTTER, "lib/main.dart", lineRe)
     if (res.error) {
@@ -478,6 +523,14 @@ export function runLocal(
   }
 }
 
+function isolationProblem() {
+  try {
+    return sandboxDisabled() ? undefined : sandboxProblem()
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e)
+  }
+}
+
 /** Which toolchains are ready (for the status endpoint and the setup script). */
 export async function toolStatus() {
   const version = async (cmd: string, args: string[]) => {
@@ -502,5 +555,7 @@ export async function toolStatus() {
     laravel: existsSync(path.join(LARAVEL, "thonglearn-run.php")),
     flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")),
     support: existsSync(SUPPORT),
+    /** Why runs can't be sandboxed here (lib/sandbox.ts), if they can't */
+    isolation: isolationProblem(),
   }
 }

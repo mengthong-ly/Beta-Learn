@@ -76,6 +76,45 @@
   --shadow-modal: 0 16px 48px -8px rgb(15 15 15 / 0.16);
 }
 
+/* Brand palette (uicolors.app). Utilities: bg-salem-500, text-pine-green-700, … */
+@theme {
+  --color-salem-50: oklch(98.28% 0.03 158.15);
+  --color-salem-100: oklch(96.19% 0.06 158.15);
+  --color-salem-200: oklch(93.20% 0.11 156.67);
+  --color-salem-300: oklch(89.69% 0.18 154.04);
+  --color-salem-400: oklch(87.60% 0.24 149.76);
+  --color-salem-500: oklch(83.81% 0.24 147.83);
+  --color-salem-600: oklch(73.18% 0.21 148.05);
+  --color-salem-700: oklch(61.02% 0.17 148.54);
+  --color-salem-800: oklch(52.96% 0.15 148.99);
+  --color-salem-900: oklch(44.34% 0.12 150.41);
+  --color-salem-950: oklch(30.20% 0.08 152.83);
+
+  --color-pine-green-50: oklch(98.54% 0.02 177.37);
+  --color-pine-green-100: oklch(95.47% 0.06 178.02);
+  --color-pine-green-200: oklch(92.09% 0.12 176.76);
+  --color-pine-green-300: oklch(89.94% 0.16 176.04);
+  --color-pine-green-400: oklch(87.75% 0.16 175.71);
+  --color-pine-green-500: oklch(79.98% 0.15 177.09);
+  --color-pine-green-600: oklch(68.40% 0.12 179.73);
+  --color-pine-green-700: oklch(57.69% 0.10 181.13);
+  --color-pine-green-800: oklch(51.41% 0.09 182.84);
+  --color-pine-green-900: oklch(42.41% 0.07 183.13);
+  --color-pine-green-950: oklch(30.72% 0.05 188.94);
+
+  --color-rusty-nail-50: oklch(99.24% 0.03 108.76);
+  --color-rusty-nail-100: oklch(98.18% 0.09 109.99);
+  --color-rusty-nail-200: oklch(97.35% 0.15 109.35);
+  --color-rusty-nail-300: oklch(95.44% 0.20 107.41);
+  --color-rusty-nail-400: oklch(92.89% 0.20 103.60);
+  --color-rusty-nail-500: oklch(90.87% 0.19 99.86);
+  --color-rusty-nail-600: oklch(79.98% 0.16 90.93);
+  --color-rusty-nail-700: oklch(64.36% 0.13 81.03);
+  --color-rusty-nail-800: oklch(53.79% 0.11 73.70);
+  --color-rusty-nail-900: oklch(47.28% 0.10 68.41);
+  --color-rusty-nail-950: oklch(31.88% 0.07 66.66);
+}
+
 /* UI/reading font, switchable from the Appearance menu. Code always uses --font-mono. */
 :root,
 [data-font="mono"] {
@@ -102,7 +141,7 @@
   --card-foreground: #37352f;
   --popover: #ffffff;
   --popover-foreground: #37352f;
-  --primary: #5645d4;
+  --primary: var(--color-salem-800);
   --primary-foreground: #ffffff;
   --secondary: #f6f5f4;
   --secondary-foreground: #37352f;
@@ -113,22 +152,22 @@
   --destructive: #c92a2a; /* AA on its own tint */
   --border: #e5e3df;
   --input: #c8c4be;
-  --ring: #0075de;
-  --chart-1: #5645d4;
-  --chart-2: #0075de;
-  --chart-3: #1aae39;
-  --chart-4: #dd5b00;
-  --chart-5: #ff64c8;
+  --ring: var(--color-salem-600);
+  --chart-1: var(--color-salem-600);
+  --chart-2: var(--color-pine-green-500);
+  --chart-3: var(--color-salem-400);
+  --chart-4: var(--color-rusty-nail-500);
+  --chart-5: var(--color-pine-green-300);
   --sidebar: #f6f5f4;
   --sidebar-foreground: #5d5b54;
-  --sidebar-primary: #5645d4;
+  --sidebar-primary: var(--color-salem-800);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #ebeae7;
   --sidebar-accent-foreground: #1a1a1a;
   --sidebar-border: #e5e3df;
-  --sidebar-ring: #0075de;
+  --sidebar-ring: var(--color-salem-600);
 
-  --link: #0075de;
+  --link: var(--color-pine-green-800);
   --success: #0f7a2c; /* brand green is 2.5:1 on mint */
   --code-inline: #c4302b;
   --tag-purple-fg: #391c57;
@@ -150,7 +189,7 @@
   --card-foreground: #e3e2e0;
   --popover: #252525;
   --popover-foreground: #e3e2e0;
-  --primary: #7b6ce6;
+  --primary: var(--color-salem-800);
   --primary-foreground: #ffffff;
   --secondary: #252525;
   --secondary-foreground: #e3e2e0;
@@ -161,22 +200,22 @@
   --destructive: #ff6b6b;
   --border: #2f2f2f;
   --input: #3d3d3d;
-  --ring: #529cca;
-  --chart-1: #7b6ce6;
-  --chart-2: #529cca;
-  --chart-3: #4dab6f;
-  --chart-4: #ff8a3d;
-  --chart-5: #ff64c8;
+  --ring: var(--color-salem-500);
+  --chart-1: var(--color-salem-500);
+  --chart-2: var(--color-pine-green-500);
+  --chart-3: var(--color-salem-700);
+  --chart-4: var(--color-rusty-nail-500);
+  --chart-5: var(--color-pine-green-300);
   --sidebar: #202020;
   --sidebar-foreground: #9b9a97;
-  --sidebar-primary: #7b6ce6;
+  --sidebar-primary: var(--color-salem-800);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #2c2c2c;
   --sidebar-accent-foreground: #f1f1ef;
   --sidebar-border: #2f2f2f;
-  --sidebar-ring: #529cca;
+  --sidebar-ring: var(--color-salem-500);
 
-  --link: #529cca;
+  --link: var(--color-pine-green-400);
   --success: #4dab6f;
   --code-inline: #ff7369;
   --tag-purple-fg: #d6b6f6;

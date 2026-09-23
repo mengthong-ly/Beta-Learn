@@ -1,6 +1,7 @@
 // Self-check for lib/local-runner.ts: output, error lines and check verdicts per toolchain.
 // Usage: npm run check:runner   (needs npm run setup:runtimes first)
 import assert from "node:assert/strict"
+import { homedir } from "node:os"
 import { runLocal, type LocalResult } from "../lib/local-runner.ts"
 import { atLeast } from "../lib/runner-status.ts"
 
@@ -34,3 +35,20 @@ await t("dart run", runLocal("dart", "void main() {\n  print('hi');\n}"), (r) =>
 await t("dart compile error", runLocal("dart", "void main() {\n  int x = 'a';\n}"), (r) => { assert.ok(r.error); assert.equal(r.errorLine, 2) })
 await t("dart check", runLocal("dart", "int twice(int x) => x * 2;\nvoid main() {\n  print(twice(2));\n}", "  expect(lesson.twice(3) == 6);\n  expect(output.first == '4', 'prints 4');"), (r) => assert.deepEqual(r.check, { pass: true }))
 await t("dart check fail", runLocal("dart", "int twice(int x) => x;\nvoid main() {}", "  expect(lesson.twice(3) == 6, 'twice(3) should be 6');"), (r) => assert.deepEqual(r.check, { pass: false, message: "twice(3) should be 6" }))
+
+// Sandbox (lib/sandbox.ts): lesson code can't read the learner's files or secrets, write outside
+// its scratch dir, or reach the network. Output goes back to the page, so a read is a leak.
+const blocked = (r: LocalResult) => {
+  const text = [r.error ?? "", ...r.lines.map((l) => l.text)].join("\n")
+  assert.doesNotMatch(text, /LEAKED/, "sandbox let the secret through")
+}
+process.env.THONGLEARN_ESCAPE_TEST = "LEAKED"
+await t("sandbox: php can't read ~", runLocal("php", "<?php\necho 'LEAKED:', @file_get_contents(getenv('HOME').'/.zshrc') !== false ? 'yes' : '';"), (r) => assert.ok(!r.lines.some((l) => l.text === "LEAKED:yes"), "read ~/.zshrc"))
+await t("sandbox: php can't see server env", runLocal("php", "<?php\necho getenv('THONGLEARN_ESCAPE_TEST');"), blocked)
+await t("sandbox: laravel can't read .env.local", runLocal("laravel", "<?php\necho @file_get_contents(base_path('../../.env.local')) !== false ? 'LEAKED' : 'ok';"), blocked)
+await t("sandbox: ts can't write ~", runLocal("typescript", 'import { writeFileSync } from "node:fs"\nimport { homedir } from "node:os"\ntry { writeFileSync(homedir() + "/thonglearn-pwned", "x"); console.log("LEAKED") } catch { console.log("ok") }'), blocked)
+await t("sandbox: ts can't reach the network", runLocal("typescript", 'try { await fetch("https://example.com"); console.log("LEAKED") } catch { console.log("ok") }\nexport {}'), blocked)
+await t("sandbox: dart can't read ~", runLocal("dart", "import 'dart:io';\nvoid main() {\n  try { File('${Platform.environment['HOME']}/.zshrc').readAsStringSync(); print('LEAKED'); } catch (_) { print('ok'); }\n}"), blocked)
+await t("sandbox: php can't reach localhost", runLocal("php", "<?php\necho @fsockopen('127.0.0.1', 3000, $e, $s, 1) ? 'LEAKED' : 'ok';"), blocked)
+// Flutter's HOME is private (runtimes/.flutter-home), so aim at the real one.
+await t("sandbox: flutter test can't read ~", runLocal("flutter", `import 'dart:io';\nimport 'package:flutter/material.dart';\nString leak() { try { return File('${homedir()}/.zshrc').readAsStringSync(); } catch (_) { return Platform.environment['THONGLEARN_ESCAPE_TEST'] ?? 'ok'; } }\nvoid main() => runApp(const SizedBox());`, "    expect(app.leak(), 'ok');", { flutterMode: "test" }), (r) => assert.equal(r.check?.pass, true, JSON.stringify(r)))

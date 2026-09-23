@@ -142,8 +142,18 @@ function finish(patch: Partial<RunState>) {
 }
 let busyWorker = false
 
-const RUNNER_OFF =
-  "This course runs on your computer, and the local runner is off. Start ThongLearn with `npm run dev` (and run `npm run setup:runtimes` once)."
+const isLocal = () => ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)
+
+/** The command that starts the runner: a hosted copy needs `dev:hosted`, which trusts it. */
+export const runnerCommand = () => (isLocal() ? "npm run dev" : "npm run dev:hosted")
+
+const runnerOff = () =>
+  `This course runs on your computer, and the local runner is off. Clone ThongLearn and start it with \`${runnerCommand()}\` (and run \`npm run setup:runtimes\` once).`
+
+/** Where the local runner lives: same origin locally; a hosted copy calls `npm run dev:hosted` on the learner's machine. */
+export function runnerUrl(path: string) {
+  return (isLocal() ? "" : "http://127.0.0.1:3000") + path
+}
 
 export function run(
   code: string,
@@ -185,14 +195,14 @@ export function run(
         : `Running on your computer (${course.id === "flutter" ? "flutter test" : course.id})`,
     })
     aborter = new AbortController()
-    fetch("/api/run", {
+    fetch(runnerUrl("/api/run"), {
       method: "POST",
       headers: { "content-type": "application/json", "x-thonglearn-run": "1" },
       body: JSON.stringify({ course: course.id, code, check }),
       signal: aborter.signal,
     })
       .then(async (res) => {
-        if (res.status === 403) return finish({ status: "error", error: RUNNER_OFF })
+        if (res.status === 403) return finish({ status: "error", error: runnerOff() })
         const r = await res.json()
         finish({
           status: r.error ? "error" : "done",
@@ -201,12 +211,11 @@ export function run(
           error: r.error,
           errorLine: r.errorLine,
           check: r.check,
-          ...(r.previewUrl && { preview: { kind: "url" as const, url: r.previewUrl } }),
+          ...(r.previewUrl && { preview: { kind: "url" as const, url: runnerUrl(r.previewUrl) } }),
         })
       })
       .catch((e: Error) => {
-        if (e.name !== "AbortError")
-          finish({ status: "error", error: `Couldn't reach the local runner: ${e.message}` })
+        if (e.name !== "AbortError") finish({ status: "error", error: runnerOff() })
       })
   }
   return done

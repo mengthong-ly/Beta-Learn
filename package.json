@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "LOCAL_RUNNER=1 next dev -H 127.0.0.1",
+    "dev:hosted": "RUNNER_ORIGINS=https://beta-learn.vercel.app LOCAL_RUNNER=1 next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -17,6 +18,7 @@
     "check:runner": "node --no-warnings scripts/check-runner.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.77",
     "@capacitor/android": "^8.5.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/haptics": "^8.0.2",

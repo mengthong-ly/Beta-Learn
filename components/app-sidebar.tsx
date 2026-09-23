@@ -6,19 +6,16 @@ import { useLiveQuery } from "dexie-react-hooks"
 import {
   BookMarkedIcon,
   CheckIcon,
-  ChevronRightIcon,
   CodeIcon,
+  HistoryIcon,
   ListChecksIcon,
   SearchIcon,
-  MonitorCogIcon,
   TrophyIcon,
 } from "lucide-react"
 
 import { AccountMenu } from "@/components/account-menu"
-import { AppearanceMenu } from "@/components/appearance-menu"
 import { CourseSwitcher } from "@/components/course-switcher"
-import { HistoryList } from "@/components/history-list"
-import { ProgressRing } from "@/components/progress-ring"
+import { FocusTimer } from "@/components/focus-timer"
 import { StatsBadge } from "@/components/stats-badge"
 import {
   Collapsible,
@@ -42,14 +39,10 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
-  SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { docHref, docKey, useWorkspace } from "@/components/workspace-context"
+import { docHref, findDoc, useWorkspace } from "@/components/workspace-context"
 import { db } from "@/lib/db"
 import { quizHref, quizStoreKey, sections as allSections } from "@/lib/docs"
-import { cn } from "@/lib/utils"
-
-const label = "text-[11px] font-semibold tracking-[1px] uppercase"
 
 export function AppSidebar({
   current,
@@ -61,14 +54,21 @@ export function AppSidebar({
   onSearch: () => void
 }) {
   const { course, lessons, guide, done } = useWorkspace()
+  // Latest run per doc, so repeated runs of one lesson show once.
   const recent = useLiveQuery(
-    () =>
-      db.runs
-        .orderBy("createdAt")
-        .reverse()
-        .filter((r) => r.lessonId.startsWith(`${course}/`))
-        .limit(30)
-        .toArray(),
+    async () => {
+      const seen = new Set<string>()
+      return (
+        await db.runs
+          .orderBy("createdAt")
+          .reverse()
+          .filter((r) => r.lessonId.startsWith(`${course}/`))
+          .limit(50)
+          .toArray()
+      )
+        .filter((r) => !seen.has(r.lessonId) && !!seen.add(r.lessonId))
+        .slice(0, 5)
+    },
     [course],
     []
   )
@@ -88,12 +88,9 @@ export function AppSidebar({
   const guideOpen = current === "guide" || current.startsWith("guide:")
 
   // Sections open/close freely, but the current doc's section always opens.
-  const currentSection = guideOpen
-    ? "Guide Book"
-    : sections.find(
-        (s) =>
-          s.lessons.some((l) => l.id === current) || current === `quiz:${s.id}`
-      )?.name
+  const currentSection = sections.find(
+    (s) => s.lessons.some((l) => l.id === current) || current === `quiz:${s.id}`
+  )?.name
   const [open, setOpen] = useState<string[]>([])
   const [seen, setSeen] = useState<string>()
   if (currentSection !== seen) {
@@ -105,10 +102,13 @@ export function AppSidebar({
     setOpen((prev) => (o ? [...prev, name] : prev.filter((n) => n !== name)))
 
   return (
-    <Sidebar>
-      <SidebarHeader>
+    <Sidebar variant="floating">
+      <SidebarHeader className="gap-3">
         <CourseSwitcher course={course} />
-        <StatsBadge />
+        <div className="flex items-center justify-between">
+          <StatsBadge />
+          <FocusTimer />
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={onSearch}>
@@ -128,20 +128,29 @@ export function AppSidebar({
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {guide.length > 0 && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={guideOpen && !runId}>
+                <Link href={`/${course}/guide`}>
+                  <BookMarkedIcon />
+                  <span>Guide Book</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className={label}>
-            Course sessions
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Lessons</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {sections.map((s) => {
                 const count = s.lessons.filter((l) =>
                   done.includes(l.id)
                 ).length
+                const [num, title] = s.name.split(" · ")
                 return (
                   <Collapsible
                     key={s.name}
@@ -152,20 +161,23 @@ export function AppSidebar({
                   >
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="pr-12" title={s.name}>
-                          <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                          <span>{s.name}</span>
+                        <SidebarMenuButton className="pr-10" title={s.name}>
+                          <span className="w-4 shrink-0 text-xs text-muted-foreground tabular-nums">
+                            {title ? num : ""}
+                          </span>
+                          <span>{title ?? s.name}</span>
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <SidebarMenuBadge
-                        className={cn(
-                          count === s.lessons.length && "text-success"
-                        )}
+                        aria-label={`${count} of ${s.lessons.length} done`}
                       >
-                        <span className="flex items-center gap-1.5">
-                          <ProgressRing value={count} max={s.lessons.length} />
-                          {count}/{s.lessons.length}
-                        </span>
+                        {count === s.lessons.length ? (
+                          <CheckIcon className="size-3.5 text-success" />
+                        ) : (
+                          <span className="font-normal text-muted-foreground">
+                            {count}/{s.lessons.length}
+                          </span>
+                        )}
                       </SidebarMenuBadge>
                       <CollapsibleContent>
                         <SidebarMenuSub>
@@ -230,83 +242,32 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {guide.length > 0 && (
+        {recent.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className={label}>Reference</SidebarGroupLabel>
+            <SidebarGroupLabel>Recent</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <Collapsible
-                  asChild
-                  open={open.includes("Guide Book")}
-                  onOpenChange={(o) => setSection("Guide Book", o)}
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton>
-                        <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                        <BookMarkedIcon />
-                        <span>Guide Book</span>
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <SidebarMenuBadge>{guide.length}</SidebarMenuBadge>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={current === "guide" && !runId}
-                          >
-                            <Link href={`/${course}/guide`}>Contents</Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                        {guide.map((g, i) => (
-                          <SidebarMenuSubItem key={g.id}>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={docKey(g) === current && !runId}
-                            >
-                              <Link href={docHref(g, course)}>
-                                <span className="w-4 shrink-0 text-muted-foreground tabular-nums">
-                                  {i + 1}
-                                </span>
-                                <span className="truncate" title={g.title}>
-                                  {g.title}
-                                </span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
+                {recent.map((r) => (
+                  <SidebarMenuItem key={r.id}>
+                    <SidebarMenuButton asChild isActive={r.id === runId}>
+                      <Link href={`/${course}/run/${r.id}`}>
+                        <HistoryIcon />
+                        <span className="truncate">
+                          {findDoc(r.lessonId, lessons, guide)?.title ??
+                            r.lessonId}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
-                </Collapsible>
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
-
-        {recent.length > 0 && (
-          <>
-            <SidebarSeparator />
-            <HistoryList runs={recent} activeId={runId} />
-          </>
         )}
       </SidebarContent>
 
       <SidebarFooter>
         <AccountMenu />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/setup">
-                <MonitorCogIcon />
-                <span>Setup</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <AppearanceMenu />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

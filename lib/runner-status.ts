@@ -74,7 +74,14 @@ export async function requirements(): Promise<Requirement[]> {
       ],
     ],
   ]
-  return rows.map(([course, items]) => ({ course, ready: items.every((i) => i.ok), items }))
+  // Every local course runs inside the OS sandbox (lib/sandbox.ts), so none runs without it.
+  const isolation: Item = {
+    name: "OS sandbox",
+    found: t.isolation ? undefined : process.platform === "darwin" ? "sandbox-exec" : "bubblewrap",
+    need: t.isolation ?? "macOS, or Linux with bubblewrap",
+    ok: !t.isolation,
+  }
+  return rows.map(([course, items]) => ({ course, ready: [...items, isolation].every((i) => i.ok), items: [...items, isolation] }))
 }
 
 // --- Caches -------------------------------------------------------------------
