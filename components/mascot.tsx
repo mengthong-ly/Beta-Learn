@@ -41,7 +41,14 @@ export function useMascot(): MascotId {
 // Cells are numbered row by row, 0 (top left) to 8.
 // Directions: 0 ↖ 1 ↑ 2 ↗ / 3 ← 4 • 5 → / 6 ↙ 7 ↓ 8 ↘
 // Reactions: 0 happy 1 heart 2 sparkle / 3 "o" 4 star eyes 5 blush / 6 asleep 7 dizzy 8 laugh
-const FACE = { surprised: 3, stars: 4, blush: 5, asleep: 6, dizzy: 7, laugh: 8 }
+export const FACE = {
+  surprised: 3,
+  stars: 4,
+  blush: 5,
+  asleep: 6,
+  dizzy: 7,
+  laugh: 8,
+}
 const POKE = [0, 1, 2, FACE.blush, FACE.laugh]
 
 const SLEEP_MS = 45_000
@@ -61,25 +68,11 @@ function Sheet({ src, cell, on }: { src: string; cell: number; on: boolean }) {
   )
 }
 
-/** The mascot peeking over the editor: follows the pointer, reacts to runs and to pokes. */
-export function Mascot() {
-  const mascot = useMascot()
-  const ref = useRef<HTMLDivElement>(null)
-  const { status, check } = useRunner()
+/** Directions-sheet cell pointing from `ref` toward the pointer (4 = straight ahead). */
+export function usePointerLook(ref: React.RefObject<HTMLElement | null>) {
   const [look, setLook] = useState(4)
-  const [face, setFace] = useState<number>()
-  const [asleep, setAsleep] = useState(false)
-
-  // Look toward the pointer; doze off after a while with no activity.
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>
-    const wake = () => {
-      setAsleep(false)
-      clearTimeout(timer)
-      timer = setTimeout(() => setAsleep(true), SLEEP_MS)
-    }
     const onMove = (e: PointerEvent) => {
-      wake()
       const r = ref.current?.getBoundingClientRect()
       if (!r) return
       const dx = e.clientX - (r.left + r.width / 2)
@@ -91,12 +84,53 @@ export function Mascot() {
       const row = Math.abs(dy) < Math.abs(dx) / 2.4 ? 0 : Math.sign(dy)
       setLook((row + 1) * 3 + col + 1)
     }
-    wake()
     window.addEventListener("pointermove", onMove)
+    return () => window.removeEventListener("pointermove", onMove)
+  }, [ref])
+  return look
+}
+
+/** The two sprite sheets, cross-fading between a look (directions) and a face (reactions). */
+export function MascotSprite({ look, face }: { look: number; face?: number }) {
+  const mascot = useMascot()
+  return (
+    <>
+      <Sheet
+        src={`/images/${mascot}-directions.webp`}
+        cell={look}
+        on={face === undefined}
+      />
+      <Sheet
+        src={`/images/${mascot}-reactions.webp`}
+        cell={face ?? FACE.asleep}
+        on={face !== undefined}
+      />
+    </>
+  )
+}
+
+/** The mascot peeking over the editor: follows the pointer, reacts to runs and to pokes. */
+export function Mascot() {
+  const ref = useRef<HTMLDivElement>(null)
+  const { status, check } = useRunner()
+  const look = usePointerLook(ref)
+  const [face, setFace] = useState<number>()
+  const [asleep, setAsleep] = useState(false)
+
+  // Doze off after a while with no activity.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const wake = () => {
+      setAsleep(false)
+      clearTimeout(timer)
+      timer = setTimeout(() => setAsleep(true), SLEEP_MS)
+    }
+    wake()
+    window.addEventListener("pointermove", wake)
     window.addEventListener("keydown", wake)
     return () => {
       clearTimeout(timer)
-      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointermove", wake)
       window.removeEventListener("keydown", wake)
     }
   }, [])
@@ -130,7 +164,6 @@ export function Mascot() {
     })
   const shown = status === "running" ? FACE.surprised : face
 
-  const reacting = shown !== undefined || asleep
   return (
     <div
       ref={ref}
@@ -138,15 +171,9 @@ export function Mascot() {
       onPointerDown={poke}
       className="absolute right-6 bottom-0 z-10 size-20 translate-y-[24%] cursor-pointer transition-transform duration-100 select-none active:scale-90 motion-reduce:transition-none"
     >
-      <Sheet
-        src={`/images/${mascot}-directions.webp`}
-        cell={look}
-        on={!reacting}
-      />
-      <Sheet
-        src={`/images/${mascot}-reactions.webp`}
-        cell={shown ?? FACE.asleep}
-        on={reacting}
+      <MascotSprite
+        look={look}
+        face={shown ?? (asleep ? FACE.asleep : undefined)}
       />
     </div>
   )
