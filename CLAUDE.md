@@ -2,7 +2,9 @@
 
 # ThongLearn
 
-Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, Flutter). Python runs in the browser via Pyodide and React in a sandboxed iframe. The other courses run on the learner's own toolchains through the opt-in local runner (`lib/local-runner.ts`, `/api/run`, see `docs/adr/0001-local-runner.md`). There is no other server-side code execution.
+Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, Flutter, Claude Code). In the browser: Python via Pyodide, React in a sandboxed iframe, TypeScript/Claude Code via TypeScript 6 in a worker, PHP/Laravel via php-wasm in a worker (`docs/adr/0002-browser-runtimes.md`). C++, Dart and Flutter run on the learner's own toolchains through the local runner (`lib/local-runner.ts`, `/api/run`, `docs/adr/0001-local-runner.md`), only in a local copy: on the website they're write-only, and the website never calls the learner's machine. There is no server-side code execution.
+
+Developer docs: `docs/README.md` (index), `docs/adding-a-lesson.md` (step-by-step for new lessons), `docs/architecture.md`, `docs/tech-stack.md`, `docs/runtimes.md`, `docs/content-authoring.md`, `docs/accounts-and-storage.md`. Read the one covering the area you're changing before you start.
 
 ## Tech stack
 
@@ -12,11 +14,12 @@ Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, F
 | Styling / UI    | Tailwind v4 (`app/globals.css`, no config file), shadcn/ui (`radix-nova` style), lucide-react, motion |
 | Editor          | Monaco via `@monaco-editor/react` (loaded from CDN)                                            |
 | Python runtime  | Pyodide 314 (CPython 3.14) in `public/python.worker.js`, which is an unbundled **module** worker. Inspect data comes from `public/inspect.py` |
+| Other runtimes  | TypeScript 6 (`public/ts.worker.js` + `public/ts-run.html`), php-wasm PHP 8.5 (`public/php.worker.js`), both unbundled module workers; see `docs/runtimes.md` |
 | Storage         | Dexie over IndexedDB (`lib/db.ts`), browser only: history, progress, drafts                    |
-| Content         | Markdown in `content/lessons/*.md` and `content/guide/*.md`, parsed by `lib/lesson-parser.ts`, `lib/content.ts`, `lib/docs.ts` |
+| Content         | Markdown in `content/<course>/lessons/*.md` and `content/python/guide/*.md`, parsed by `lib/lesson-parser.ts`, `lib/content.ts`, `lib/docs.ts` |
 | Design docs     | `.design/thonglearn/`                                                                          |
 
-Commands: `npm run dev` (turns on the local runner and binds to 127.0.0.1), `npm run dev:hosted` (same, and lets the hosted site call the runner), `npm run setup:runtimes` (run once: creates the TypeScript 7, Laravel 13 and Flutter sandboxes in `runtimes/`), `npm run lint`, `npm run typecheck`, `npm run check:content [-- course…]` (runs every lesson and guide example for real), `npm run check:runner`, `npm run build`.
+Commands: `npm run dev` (turns on the local runner and binds to 127.0.0.1), `npm run setup:runtimes` (run once: creates the Flutter sandbox in `runtimes/`), `npm run lint`, `npm run typecheck`, `npm run check:content [-- course…]` (runs every lesson and guide example for real; `-- --record <course>` saves real outputs for write-only courses), `npm run check:runner`, `npm run build`. `node --no-warnings scripts/build-laravel-snapshot.ts` rebuilds `public/laravel-app.json.gz` (needs php and composer). `dev`, `build` and `check:content` first run `scripts/build-ts-assets.mjs`.
 
 Native apps (Capacitor 8, `ios/` and `android/`): the apps load the running Next.js server from `server.url` in `capacitor.config.ts` (default is the dev server; set `CAP_SERVER_URL` for release). Run `npx cap sync` after changing config or plugins, then `npx cap open ios|android`. On Android, run `adb reverse tcp:3000 tcp:3000` first.
 
@@ -30,7 +33,7 @@ Native apps (Capacitor 8, `ios/` and `android/`): the apps load the running Next
 
 ### 2. Base every lesson on an official reference
 
-- Before you write or edit anything in `content/lessons/` or `content/guide/`, check the facts against official Python sources:
+- Before you write or edit anything in `content/<course>/lessons/` or `content/python/guide/`, check the facts against official Python sources:
   - https://docs.python.org/3/ (tutorial, library reference, language reference)
   - https://docs.python.org/3/whatsnew/ for behavior specific to 3.14
   - https://peps.python.org/ for the reasons behind a feature
