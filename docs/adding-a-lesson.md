@@ -24,18 +24,17 @@ content/<course>/lessons/NN-slug.md
 
 | Writing for | You need |
 | --- | --- |
-| `python`, `react`, `typescript`, `claude-code`, `php`, `laravel` | nothing beyond `npm install` — they run in the browser |
-| `cpp`, `dart`, `flutter` | the toolchain below, plus `npm run setup:runtimes` once |
+| `python`, `react`, `typescript`, `claude-code`, `php`, `laravel`, `cpp` | nothing beyond `npm install` — they run in the browser |
+| `dart`, `flutter` | the toolchain below, plus `npm run setup:runtimes` once |
 
 ```bash
 npm install
-npm run setup:runtimes    # only for C++, Dart and Flutter
+npm run setup:runtimes    # only for Dart and Flutter
 npm run dev               # http://localhost:3000
 ```
 
 | Course | Needs on your PATH | Version |
 | --- | --- | --- |
-| `cpp` | `c++` | C++23 support — clang 15+ or g++ 13+ |
 | `dart` | `dart` | ≥ 3.13 |
 | `flutter` | `flutter` (brings its own `dart`) | ≥ 3.47 |
 
@@ -48,7 +47,7 @@ macOS or Linux only. The local runner requires an OS sandbox; on Linux install i
 `sudo apt install bubblewrap socat`. Windows can't run those courses at all — you can still
 author the browser courses there.
 
-For C++ and Dart, also re-record the real outputs that write-only learners on the website see:
+For Dart, also re-record the real outputs that write-only learners on the website see:
 `npm run check:content -- --record dart` (commits `content/dart/outputs.json`). `check:content`
 fails when an example or solution has no recording.
 
@@ -176,7 +175,7 @@ depends on the course:
 | Python | `__stdout__` (all output as one string) and the lesson's own globals. Use `assert …, "message"` |
 | PHP, Laravel | `$output` (string), `expect($ok, $msg)`; Laravel adds `visit($uri)` |
 | TypeScript, Claude Code | `output` (`string[]`, one per `console.log`), `expect(ok, msg)`, `lesson.*` for exports |
-| C++ | `output` (`std::vector<std::string>`), `expect(ok, msg)` |
+| C++ | `output` (`std::vector<std::string>`), `expect(ok, msg)`, the lesson's own functions and types |
 | Dart | `output` (`List<String>`), `expect(ok, msg)`, `lesson.*` |
 | React | `$`, `$$`, `click(el)`, `type(el, value)`, `tick(ms)`, `expect(ok, msg)` — runs against the live DOM |
 | Flutter | a `testWidgets` body: `tester`, `find`, `expect`; the app is already pumped |

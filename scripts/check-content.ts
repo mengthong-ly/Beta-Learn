@@ -4,7 +4,8 @@
 // Python runs in Pyodide (anything on stderr, e.g. a pandas FutureWarning, fails; the Inspect
 // collector runs too). TypeScript compiles with the browser runtime's compiler (public/ts-compile.js)
 // and runs in Node; PHP and Laravel run on the browser runtime's php-wasm build for Node
-// (public/php-run.js, public/laravel-app.json.gz). Dart, C++ and Flutter run on the local toolchains
+// (public/php-run.js, public/laravel-app.json.gz); C++ compiles with the browser runtime's clang
+// (public/cpp-run.js). Dart and Flutter run on the local toolchains
 // (lib/local-runner.ts, needs `npm run setup:runtimes`). React is transpiled and server-rendered.
 // Examples are fences in the course's language (```php); use ```php-snippet for code that isn't
 // a whole runnable program.
@@ -180,11 +181,20 @@ const local =
   (code, check) =>
     runLocal(course, code, check, { flutterMode: "test" })
 
+// --- C++: the browser runtime's clang (YoWASP's LLVM 22 for wasm), run in Node. ---
+async function cpp(): Promise<Execute> {
+  const { commands } = await import("@yowasp/clang")
+  const wasi = await import("@bjorn3/browser_wasi_shim")
+  const { compileAndRun } = await import("../public/cpp-run.js")
+  return (code, check) => compileAndRun(commands["clang++"], wasi, { code, check }) as Promise<Result>
+}
+
 async function executor(c: Course): Promise<Execute> {
   if (c.runtime === "pyodide") return python()
   if (c.runtime === "react") return react()
   if (c.runtime === "ts") return typescript()
   if (c.runtime === "php") return php(c.id === "laravel")
+  if (c.runtime === "cpp") return cpp()
   return local(c.id as LocalCourse)
 }
 
@@ -270,7 +280,10 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
             : c.id === "cpp"
               ? `    std::string all;
     for (const std::string &line : output) { all += line; all += "\\n"; }
-    while (!all.empty() && all.back() == '\\n') all.pop_back();
+    const std::string space = " \\t\\r\\n";
+    all.erase(0, all.find_first_not_of(space));
+    const std::size_t last = all.find_last_not_of(space);
+    all.erase(last == std::string::npos ? 0 : last + 1);
     expect(all == ${JSON.stringify(want)}, "printed " + all);`
               : undefined
         if (!assertOutput) {

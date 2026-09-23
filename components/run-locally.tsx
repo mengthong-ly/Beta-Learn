@@ -44,7 +44,7 @@ export function RunLocallySteps() {
     <div className="grid gap-4 text-sm">
       <p className="text-muted-foreground">
         You need macOS or Linux, git, Node.js 20.9 or later, and the course&apos;s toolchain (the
-        Dart SDK, Flutter or a C++ compiler). Windows can&apos;t run lessons yet: the sandbox that
+        Dart SDK or Flutter). Windows can&apos;t run lessons yet: the sandbox that
         keeps lesson code away from your files doesn&apos;t start there.
       </p>
       <ol className="grid gap-3">
