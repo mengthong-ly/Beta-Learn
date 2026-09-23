@@ -180,17 +180,23 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
       // "What does this print?": the + answer must be the real output.
       for (const q of l.quiz ?? []) {
         if (!q.code) continue
-        if (c.runtime !== "pyodide") {
-          // ponytail: only Python's check has __stdout__ wired here; add per-runtime
-          // output checks (PHP $output, TS/Dart output) when those courses get quizzes.
-          problems.push("quiz code questions are only verified for Python so far")
+        const want = q.options[q.answer].trim()
+        // ponytail: Python and C++ only; add the others (PHP $output, TS/Dart output)
+        // when those courses get quizzes.
+        const assertOutput =
+          c.runtime === "pyodide"
+            ? `assert __stdout__.strip() == ${JSON.stringify(want)}, "printed " + repr(__stdout__.strip())`
+            : c.id === "cpp"
+              ? `    std::string all;
+    for (const std::string &line : output) { all += line; all += "\\n"; }
+    while (!all.empty() && all.back() == '\\n') all.pop_back();
+    expect(all == ${JSON.stringify(want)}, "printed " + all);`
+              : undefined
+        if (!assertOutput) {
+          problems.push("quiz code questions are only verified for Python and C++ so far")
           break
         }
-        const want = q.options[q.answer].trim()
-        const r = await execute(
-          q.code,
-          `assert __stdout__.strip() == ${JSON.stringify(want)}, "printed " + repr(__stdout__.strip())`
-        )
+        const r = await execute(q.code, assertOutput)
         if (!r.check?.pass)
           problems.push(`quiz answer wrong for "${q.prompt}": ${r.check?.message}`)
       }

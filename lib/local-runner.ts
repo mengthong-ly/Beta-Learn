@@ -1,4 +1,4 @@
-// Runs lesson code with the learner's own toolchains (dart, flutter, php, tsc/node).
+// Runs lesson code with the learner's own toolchains (c++, dart, flutter, php, tsc/node).
 // Used by app/api/run (opt-in, see docs/adr/0001-local-runner.md) and scripts/check-content.ts.
 // Node stdlib only, no path aliases, erasable TypeScript only: Node runs this file directly.
 import { spawn } from "node:child_process"
@@ -22,6 +22,7 @@ export const LOCAL_COURSES = [
   "php",
   "laravel",
   "typescript",
+  "cpp",
   "dart",
   "flutter",
   "claude-code",
@@ -41,6 +42,7 @@ const TIMEOUT: Record<LocalCourse, number> = {
   php: 15_000,
   laravel: 30_000,
   typescript: 20_000,
+  cpp: 30_000,
   dart: 30_000,
   flutter: 300_000,
   "claude-code": 20_000,
@@ -261,6 +263,78 @@ async function runTypeScript(code: string, check: string | undefined, signal?: A
   })
 }
 
+// --- C++: the learner's own compiler (`c++`); the check includes the lesson as a header. ---
+// The lesson's `main` is renamed so check.cpp can call it and capture what it prints.
+const CPP_CHECK = (check: string) => `#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include "lesson.hpp"
+
+static std::vector<std::string> output;
+
+static void expect(bool ok, const std::string &message = "Check failed") {
+  if (!ok) throw std::runtime_error(message);
+}
+
+static std::string escape(const std::string &s) {
+  std::string out;
+  for (char c : s) {
+    if (c == '"' || c == '\\\\') out += '\\\\';
+    else if (c == '\\n') { out += "\\\\n"; continue; }
+    out += c;
+  }
+  return out;
+}
+
+int main() {
+  std::ostringstream captured;
+  std::streambuf *saved = std::cout.rdbuf(captured.rdbuf());
+  lesson_main();
+  std::cout.rdbuf(saved);
+  std::cout << captured.str();
+  std::istringstream reader(captured.str());
+  for (std::string line; std::getline(reader, line);) output.push_back(line);
+  try {
+${check}
+    std::cerr << "${CHECK_MARK}" << "{\\"pass\\": true}" << std::endl;
+  } catch (const std::exception &e) {
+    std::cerr << "${CHECK_MARK}" << "{\\"pass\\": false, \\"message\\": \\"" << escape(e.what())
+              << "\\"}" << std::endl;
+  }
+}
+`
+
+async function runCpp(code: string, check: string | undefined, signal?: AbortSignal) {
+  return withTemp(async (dir) => {
+    const started = Date.now()
+    const entry = check ? "check.cpp" : "main.cpp"
+    if (check) {
+      // Same lines as main.cpp, so compiler errors still point at the learner's line.
+      await writeFile(path.join(dir, "lesson.hpp"), code.replace(/\bint(\s+)main(\s*)\(/, "int$1lesson_main$2("))
+      await writeFile(path.join(dir, "check.cpp"), CPP_CHECK(check))
+    } else await writeFile(path.join(dir, "main.cpp"), code)
+    const compile = await runProcess("c++", ["-std=c++23", "-Wall", "-o", "lesson", entry], {
+      cwd: dir,
+      timeout: TIMEOUT.cpp,
+      signal,
+    })
+    const asMain = (s: string) => s.replaceAll("lesson.hpp", "main.cpp")
+    const lineRe = /main\.cpp:(\d+)/
+    if (compile.code !== 0)
+      return settle(
+        { ...compile, stderr: asMain(compile.stdout + compile.stderr), stdout: "" },
+        started,
+        dir,
+        "main.cpp",
+        lineRe
+      )
+    const r = await runProcess(path.join(dir, "lesson"), [], { cwd: dir, timeout: TIMEOUT.cpp, signal })
+    return settle({ ...r, stderr: asMain(r.stderr) }, started, dir, "main.cpp", lineRe)
+  })
+}
+
 // --- Dart: `dart run`; the check imports the lesson as a library. ---
 const DART_CHECK = (check: string) => `import 'dart:async';
 import 'dart:convert';
@@ -395,6 +469,8 @@ export function runLocal(
     case "typescript":
     case "claude-code":
       return runTypeScript(code, check, opts.signal)
+    case "cpp":
+      return runCpp(code, check, opts.signal)
     case "dart":
       return runDart(code, check, opts.signal)
     case "flutter":
@@ -408,8 +484,9 @@ export async function toolStatus() {
     const r = await runProcess(cmd, args, { cwd: process.cwd(), timeout: 60_000 })
     return r.code === 0 ? (r.stdout + r.stderr).trim().split("\n")[0] : undefined
   }
-  const [php, dart, flutter, node, tsc] = await Promise.all([
+  const [php, cpp, dart, flutter, node, tsc] = await Promise.all([
     version("php", ["-r", "echo PHP_VERSION;"]),
+    version("c++", ["--version"]),
     version("dart", ["--version"]),
     version("flutter", ["--version"]),
     version("node", ["--version"]),
@@ -417,6 +494,7 @@ export async function toolStatus() {
   ])
   return {
     php,
+    cpp,
     dart,
     flutter,
     node,

@@ -18,7 +18,7 @@ export default function SetupPage() {
         Your computer
       </h1>
       <p className="mt-2 text-muted-foreground">
-        PHP, Laravel, TypeScript, Dart and Flutter lessons run on the toolchains
+        PHP, Laravel, TypeScript, C++, Dart and Flutter lessons run on the toolchains
         installed here. Check that each one is ready, and clean up what the runs
         leave behind.
       </p>
