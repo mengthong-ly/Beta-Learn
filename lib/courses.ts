@@ -3,6 +3,7 @@
  *
  * runtime: where code runs.
  *   "pyodide" Python in a browser worker (public/python.worker.js)
+ *   "ts"      TypeScript 6 in a browser worker (public/ts.worker.js), run in a sandboxed iframe (ADR-0002)
  *   "local"   the learner's own toolchain through the opt-in /api/run route (ADR-0001)
  *   "react"   a sandboxed browser iframe (public/react-preview.html)
  * lang: the fence name in lessons ("```dart starter") and the Monaco language.
@@ -45,8 +46,8 @@ export const courses = [
     id: "typescript",
     name: "TypeScript",
     mark: "Ts",
-    tagline: "JavaScript with types, checked by the real TypeScript 7 compiler.",
-    runtime: "local",
+    tagline: "JavaScript with types, checked by the TypeScript compiler in your browser.",
+    runtime: "ts",
     lang: "typescript",
     file: "main.ts",
     comment: "//",
@@ -102,7 +103,7 @@ export const courses = [
     name: "Claude Code",
     mark: "Cc",
     tagline: "Skills, MCP servers and agentic workflows, practised in TypeScript.",
-    runtime: "local",
+    runtime: "ts",
     lang: "typescript",
     file: "main.ts",
     comment: "//",

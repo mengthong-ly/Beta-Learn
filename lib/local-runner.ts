@@ -4,7 +4,7 @@
 // No path aliases, erasable TypeScript only: Node runs this file directly.
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 
@@ -24,17 +24,14 @@ export type LocalResult = {
 export const LOCAL_COURSES = [
   "php",
   "laravel",
-  "typescript",
   "cpp",
   "dart",
   "flutter",
-  "claude-code",
 ] as const
 export type LocalCourse = (typeof LOCAL_COURSES)[number]
 
 export const RUNTIMES = path.join(process.cwd(), "runtimes")
 const SUPPORT = path.join(RUNTIMES, "_support")
-const TSC = path.join(RUNTIMES, "typescript/node_modules/.bin/tsc")
 const LARAVEL = path.join(RUNTIMES, "laravel")
 const FLUTTER = path.join(RUNTIMES, "flutter")
 
@@ -44,11 +41,9 @@ const MAX_OUTPUT = 256_000
 const TIMEOUT: Record<LocalCourse, number> = {
   php: 15_000,
   laravel: 30_000,
-  typescript: 20_000,
   cpp: 30_000,
   dart: 30_000,
   flutter: 300_000,
-  "claude-code": 20_000,
 }
 
 type Proc = { code: number | null; stdout: string; stderr: string; timedOut: boolean }
@@ -223,70 +218,6 @@ async function runPhp(course: "php" | "laravel", code: string, check: string | u
           : undefined,
     })
     return settle(r, started, dir, file, new RegExp(`${file.replace(".", "\\.")}(?: on line |:)(\\d+)`))
-  })
-}
-
-// --- TypeScript: tsc 7 type-checks and emits ESM, node runs it. ---
-const TS_CHECK = (check: string) => `const output: string[] = []
-const __log = console.log
-console.log = (...a: unknown[]) => {
-  output.push(a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" "))
-  __log(...a)
-}
-function expect(ok: boolean, message = "Check failed"): asserts ok {
-  if (!ok) throw new Error(message)
-}
-const lesson = await import("./main.js")
-try {
-${check}
-  console.error("${CHECK_MARK}" + JSON.stringify({ pass: true }))
-} catch (e) {
-  console.error("${CHECK_MARK}" + JSON.stringify({ pass: false, message: e instanceof Error ? e.message : String(e) }))
-}
-export {}
-`
-
-async function runTypeScript(code: string, check: string | undefined, signal?: AbortSignal) {
-  return withTemp(async (dir) => {
-    await writeFile(path.join(dir, "main.ts"), code)
-    await writeFile(path.join(dir, "package.json"), '{ "type": "module" }\n')
-    // Lessons can import the sandbox's packages (the Claude Code course uses @modelcontextprotocol/sdk and zod).
-    await symlink(path.join(RUNTIMES, "typescript/node_modules"), path.join(dir, "node_modules"), "dir")
-    const files = ["main.ts"]
-    if (check) {
-      await writeFile(path.join(dir, "check.ts"), TS_CHECK(check))
-      files.push("check.ts")
-    }
-    await writeFile(
-      path.join(dir, "tsconfig.json"),
-      JSON.stringify({
-        compilerOptions: {
-          strict: true,
-          target: "esnext",
-          module: "nodenext",
-          moduleResolution: "nodenext",
-          lib: ["esnext", "dom"],
-          rootDir: ".",
-          outDir: "out",
-          skipLibCheck: true,
-          noEmitOnError: true,
-        },
-        files,
-      })
-    )
-    const started = Date.now()
-    const lineRe = /main\.ts[(:](\d+)/
-    const tsc = await runProcess(TSC, ["-p", ".", "--pretty", "false"], { cwd: dir, timeout: TIMEOUT.typescript, signal, sandbox: [dir] })
-    if (tsc.code !== 0)
-      return settle({ ...tsc, stderr: tsc.stdout + tsc.stderr, stdout: "" }, started, dir, "main.ts", lineRe)
-    const r = await runProcess("node", [check ? "out/check.js" : "out/main.js"], {
-      cwd: dir,
-      timeout: TIMEOUT.typescript,
-      signal,
-      sandbox: [dir],
-    })
-    // Runtime errors point at the emitted .js; its lines match main.ts closely enough for a hint.
-    return settle(r, started, dir, "main.ts", /main\.[jt]s:(\d+)/)
   })
 }
 
@@ -511,9 +442,6 @@ export function runLocal(
     case "php":
     case "laravel":
       return runPhp(course, code, check, opts.signal)
-    case "typescript":
-    case "claude-code":
-      return runTypeScript(code, check, opts.signal)
     case "cpp":
       return runCpp(code, check, opts.signal)
     case "dart":
@@ -537,21 +465,17 @@ export async function toolStatus() {
     const r = await runProcess(cmd, args, { cwd: process.cwd(), timeout: 60_000 })
     return r.code === 0 ? (r.stdout + r.stderr).trim().split("\n")[0] : undefined
   }
-  const [php, cpp, dart, flutter, node, tsc] = await Promise.all([
+  const [php, cpp, dart, flutter] = await Promise.all([
     version("php", ["-r", "echo PHP_VERSION;"]),
     version("c++", ["--version"]),
     version("dart", ["--version"]),
     version("flutter", ["--version"]),
-    version("node", ["--version"]),
-    existsSync(TSC) ? version(TSC, ["--version"]) : undefined,
   ])
   return {
     php,
     cpp,
     dart,
     flutter,
-    node,
-    tsc,
     laravel: existsSync(path.join(LARAVEL, "thonglearn-run.php")),
     flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")),
     support: existsSync(SUPPORT),

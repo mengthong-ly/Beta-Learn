@@ -25,7 +25,6 @@ export type Inspect = {
 export type RunState = {
   status: Status
   phase?: Phase
-  booted: boolean
   lines: Line[]
   ms?: number
   error?: string
@@ -36,16 +35,20 @@ export type RunState = {
   runKey: number
   /** what the "running" step says, e.g. "Running with dart" */
   label?: string
+  /** what the "booting" step says, e.g. "Loading Python…" */
+  booting?: string
   /** React and Flutter render into the Preview tab */
   preview?:
     | { kind: "react"; code: string; check?: string }
     | { kind: "url"; url: string }
+    /** TypeScript: emitted JavaScript for the hidden iframe public/ts-run.html (ScriptFrame) */
+    | { kind: "script"; main: string; check?: string }
 }
 
 const TIMEOUT_MS = 10_000
 const MAX_LINES = 2_000
 
-let state: RunState = { status: "idle", booted: false, lines: [], runKey: 0 }
+let state: RunState = { status: "idle", lines: [], runKey: 0 }
 const listeners = new Set<() => void>()
 let frame = 0
 
@@ -64,40 +67,51 @@ function set(patch: Partial<RunState>, now = true) {
   }
 }
 
-let worker: Worker | undefined
+// Runtimes that live in a module worker, served unbundled from /public (see python.worker.js).
+const WORKERS = {
+  pyodide: { url: "/python.worker.js", booting: "Loading Python (first run downloads ~10 MB)" },
+  ts: { url: "/ts.worker.js", booting: "Loading TypeScript (first run downloads ~3 MB)" },
+} as const
+type WorkerRuntime = keyof typeof WORKERS
+const isWorker = (runtime: string): runtime is WorkerRuntime => runtime in WORKERS
+
+const workers: Partial<Record<WorkerRuntime, Worker>> = {}
+const booted = new Set<WorkerRuntime>()
+let busy: WorkerRuntime | undefined
 let settle: ((s: RunState) => void) | undefined
 let timer: ReturnType<typeof setTimeout>
 let aborter: AbortController | undefined
 let previewFrame: Window | null = null
 
-/** Boot Python ahead of the first run (only Python pages call this: it downloads ~10 MB). */
-export function warmPython() {
-  if (typeof window !== "undefined" && !worker) spawn()
+const startTimer = () => {
+  timer = setTimeout(
+    () => finish({ status: "timeout", error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?` }),
+    TIMEOUT_MS
+  )
 }
 
-function spawn() {
-  // Served unbundled from /public: Pyodide needs a *module* worker (see the file header).
-  worker = new Worker(/* turbopackIgnore: true */ "/python.worker.js", {
-    type: "module",
-  })
+/** Boot a course's runtime ahead of its first run (Python downloads ~10 MB, TypeScript ~3 MB). */
+export function warm(runtime: string) {
+  if (typeof window !== "undefined" && isWorker(runtime) && !workers[runtime]) spawn(runtime)
+}
+
+function spawn(runtime: WorkerRuntime) {
+  const worker = new Worker(/* turbopackIgnore: true */ WORKERS[runtime].url, { type: "module" })
+  workers[runtime] = worker
   worker.onmessage = ({ data }) => {
-    if (data.type === "ready")
-      return set({
-        booted: true,
-        phase: state.status === "running" ? "compiling" : state.phase,
-      })
+    if (data.type === "ready") {
+      booted.add(runtime)
+      return busy === runtime && state.phase === "booting" ? set({ phase: "compiling" }) : undefined
+    }
     if (data.type === "phase") {
-      if (data.phase === "running") {
-        timer = setTimeout(
-          () =>
-            finish({
-              status: "timeout",
-              error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?`,
-            }),
-          TIMEOUT_MS
-        )
-      }
+      if (data.phase === "running") startTimer()
       return set({ phase: data.phase })
+    }
+    if (data.type === "compiled") {
+      // TypeScript: the worker is done; the hidden iframe runs the JavaScript and reports back.
+      busy = undefined
+      startTimer()
+      return set({ phase: "running", preview: { kind: "script", main: data.main, check: data.check } })
     }
     if (data.type === "line") {
       if (state.lines.length >= MAX_LINES)
@@ -125,22 +139,23 @@ function spawn() {
 function finish(patch: Partial<RunState>) {
   clearTimeout(timer)
   set({ ...patch, phase: undefined })
+  // The TypeScript iframe has done its job; unmounting it also ends leftover timers.
+  if (state.preview?.kind === "script") set({ preview: undefined })
   if (patch.status === "timeout" || patch.status === "stopped") {
     aborter?.abort() // the local runner kills the process when the request goes away
     if (state.preview?.kind === "react") set({ preview: undefined }) // unmounting ends a runaway loop
-    if (worker && busyWorker) {
+    if (busy) {
       // A busy worker can't be interrupted without SharedArrayBuffer; replace it.
-      worker.terminate()
-      state = { ...state, booted: false }
-      spawn()
+      workers[busy]?.terminate()
+      booted.delete(busy)
+      spawn(busy)
     }
   }
-  busyWorker = false
+  busy = undefined
   aborter = undefined
   settle?.(state)
   settle = undefined
 }
-let busyWorker = false
 
 const isLocal = () => ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)
 
@@ -175,17 +190,20 @@ export function run(
   }
   const done = new Promise<RunState>((resolve) => (settle = resolve))
 
-  if (course.runtime === "pyodide") {
-    warmPython()
-    busyWorker = true
-    set({ ...fresh, phase: state.booted ? "compiling" : "booting" })
-    worker!.postMessage({ code, check })
+  if (isWorker(course.runtime)) {
+    const runtime = course.runtime
+    warm(runtime)
+    busy = runtime
+    set({
+      ...fresh,
+      preview: undefined,
+      phase: booted.has(runtime) ? "compiling" : "booting",
+      booting: WORKERS[runtime].booting,
+    })
+    workers[runtime]!.postMessage({ code, check })
   } else if (course.runtime === "react") {
     set({ ...fresh, phase: "running", label: "Rendering", preview: { kind: "react", code, check } })
-    timer = setTimeout(
-      () => finish({ status: "timeout", error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?` }),
-      TIMEOUT_MS
-    )
+    startTimer()
   } else {
     const building = course.id === "flutter" && !check
     set({

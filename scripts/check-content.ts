@@ -2,12 +2,14 @@
 //   lessons: the solution passes its check, the starter does NOT, every example runs
 //   guide:   every example runs (blocks with an "error!" comment are meant to fail)
 // Python runs in Pyodide (anything on stderr, e.g. a pandas FutureWarning, fails; the Inspect
-// collector runs too). PHP, Laravel, TypeScript, Dart and Flutter run on the local toolchains
+// collector runs too). TypeScript compiles with the browser runtime's compiler (public/ts-compile.js)
+// and runs in Node. PHP, Laravel, Dart, C++ and Flutter run on the local toolchains
 // (lib/local-runner.ts, needs `npm run setup:runtimes`). React is transpiled and server-rendered.
 // Examples are fences in the course's language (```php); use ```php-snippet for code that isn't
 // a whole runnable program.
 // Usage: npm run check:content [-- course ...]    e.g. npm run check:content -- php dart
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -114,6 +116,43 @@ async function react(): Promise<Execute> {
   }
 }
 
+// --- TypeScript: the browser runtime's compiler (TS 6, in memory), then Node runs the output. ---
+async function typescript(): Promise<Execute> {
+  const { default: ts } = await import("typescript-6")
+  const { compile, CHECK_MARK } = await import("../public/ts-compile.js")
+  const read = (f: string) =>
+    JSON.parse(readFileSync(new URL(`../public/generated/ts/${f}`, import.meta.url), "utf8"))
+  const files = { ...read("libs.json"), ...read("mcp-types.json") }
+  const cache = path.join(process.cwd(), "node_modules/.cache/thonglearn")
+  mkdirSync(cache, { recursive: true })
+  return async (code, check) => {
+    const js = compile(ts, files, code, check)
+    if (js.error) return { error: js.error, lines: [] }
+    // Inside the repo, so Node finds @modelcontextprotocol/sdk and zod in node_modules.
+    const dir = mkdtempSync(path.join(cache, "ts-"))
+    try {
+      writeFileSync(path.join(dir, "package.json"), '{ "type": "module" }')
+      writeFileSync(path.join(dir, "main.js"), js.main)
+      if (js.check) writeFileSync(path.join(dir, "check.js"), js.check)
+      const r = spawnSync("node", [js.check ? "check.js" : "main.js"], { cwd: dir, encoding: "utf8", timeout: 20_000 })
+      let verdict: Result["check"]
+      const err = r.stderr.split("\n").filter((l) => {
+        if (!l.startsWith(CHECK_MARK)) return true
+        verdict = JSON.parse(l.slice(CHECK_MARK.length))
+        return false
+      })
+      const lines = [
+        ...r.stdout.split("\n").filter(Boolean).map((text) => ({ kind: "out" as const, text })),
+        ...err.filter(Boolean).map((text) => ({ kind: "err" as const, text })),
+      ]
+      if (r.status !== 0 && !verdict) return { error: err.join("\n").trim() || `exit ${r.status}`, lines }
+      return { check: verdict, lines }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+}
+
 const local =
   (course: LocalCourse): Execute =>
   (code, check) =>
@@ -122,6 +161,7 @@ const local =
 async function executor(c: Course): Promise<Execute> {
   if (c.runtime === "pyodide") return python()
   if (c.runtime === "react") return react()
+  if (c.runtime === "ts") return typescript()
   return local(c.id as LocalCourse)
 }
 

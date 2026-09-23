@@ -51,18 +51,6 @@ export async function requirements(): Promise<Requirement[]> {
         sandbox("Laravel 13 sandbox", t.laravel && has("laravel/vendor")),
       ],
     ],
-    [
-      "typescript",
-      [tool("Node.js", t.node, "≥ 20.9", "20.9"), tool("TypeScript (tsc)", t.tsc, "7.x", "7", "8")],
-    ],
-    [
-      "claude-code",
-      [
-        tool("Node.js", t.node, "≥ 20.9", "20.9"),
-        tool("TypeScript (tsc)", t.tsc, "7.x", "7", "8"),
-        sandbox("MCP SDK in the TypeScript sandbox", has("typescript/node_modules/@modelcontextprotocol/sdk")),
-      ],
-    ],
     // Any compiler with C++23 support: Apple clang 15+, clang 16+ or g++ 13+.
     ["cpp", [{ name: "C++ compiler (c++)", found: version(t.cpp), need: "clang 15+ / g++ 13+", ok: !!t.cpp }]],
     ["dart", [tool("Dart", t.dart, "≥ 3.13", "3.13")]],
@@ -90,7 +78,6 @@ export const CACHE_IDS = [
   "flutter-build",
   "laravel-cache",
   "temp",
-  "sandbox-typescript",
   "sandbox-laravel",
   "sandbox-flutter",
   "pub-cache",
@@ -132,7 +119,6 @@ async function locate(): Promise<Omit<Cache, "bytes">[]> {
     { id: "flutter-build", label: "Flutter build output", detail: "The last flutter build web and the test cache. Rebuilt on the next Flutter run.", paths: [rt("flutter/build")], scope: "project" },
     { id: "laravel-cache", label: "Laravel caches and logs", detail: "Runs php artisan optimize:clear and empties storage/logs.", paths: [rt("laravel/storage")], scope: "project" },
     { id: "temp", label: "Leftover run folders", detail: `${TEMP_PREFIX}* folders in the temp directory, left by runs that were killed.`, paths: await tempDirs(), scope: "project" },
-    { id: "sandbox-typescript", label: "TypeScript sandbox", detail: "runtimes/typescript. Run npm run setup:runtimes to get it back.", paths: [rt("typescript")], scope: "sandbox" },
     { id: "sandbox-laravel", label: "Laravel sandbox", detail: "runtimes/laravel. Run npm run setup:runtimes to get it back.", paths: [rt("laravel")], scope: "sandbox" },
     { id: "sandbox-flutter", label: "Flutter sandbox", detail: "runtimes/flutter. Run npm run setup:runtimes to get it back.", paths: [rt("flutter")], scope: "sandbox" },
     { id: "pub-cache", label: "Dart / Flutter package cache", detail: "dart pub cache clean. Every Dart and Flutter project on this machine downloads its packages again.", paths: [pubCache()], scope: "global" },
@@ -169,8 +155,6 @@ export async function clean(id: CacheId): Promise<void> {
       // ponytail: also removes the folder of a run in progress; that run then fails and can be re-run.
       for (const d of await tempDirs()) await rmrf(d)
       return
-    case "sandbox-typescript":
-      return rmrf(rt("typescript"))
     case "sandbox-laravel":
       return rmrf(rt("laravel"))
     case "sandbox-flutter":

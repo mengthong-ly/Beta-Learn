@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  ThongLearn's TypeScript runtime, part 2: runs the JavaScript that public/ts.worker.js emitted.
+  A hidden sandboxed iframe (allow-scripts only, so an opaque origin that can't touch the app).
+  The parent posts { main, check? }; this page imports them from blob URLs, formats console output
+  the way Node does (lessons were written against Node), and reports back like
+  react-preview.html: { type: "line" | "done", ... }.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@modelcontextprotocol/sdk/": "https://esm.sh/@modelcontextprotocol/sdk@1.30.0&deps=zod@4.6.5/",
+          "zod": "https://esm.sh/zod@4.6.5",
+          "zod/": "https://esm.sh/zod@4.6.5/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <script type="module">
+      const MARK = "@@thonglearn-check "
+      const send = (msg) => parent.postMessage({ thonglearn: true, ...msg }, "*")
+
+      // A compact take on Node's util.inspect, so `console.log([1, "a"])` prints [ 1, 'a' ].
+      const key = (k) => (/^[A-Za-z_$][\w$]*$/.test(k) ? k : `'${k}'`)
+      const inspect = (x, depth = 0) => {
+        if (typeof x === "string") return depth ? `'${x}'` : x
+        if (typeof x === "bigint") return `${x}n`
+        if (typeof x === "function") return `[Function: ${x.name || "(anonymous)"}]`
+        if (x === null || typeof x !== "object") return String(x)
+        if (x instanceof Error) return x.stack ?? `${x.name}: ${x.message}`
+        if (depth > 2) return Array.isArray(x) ? "[Array]" : "[Object]"
+        const list = (open, items, close) => (items.length ? `${open} ${items.join(", ")} ${close}` : `${open}${close}`)
+        if (Array.isArray(x)) return list("[", x.map((v) => inspect(v, depth + 1)), "]")
+        if (x instanceof Map)
+          return `Map(${x.size}) ` + list("{", [...x].map(([k, v]) => `${inspect(k, depth + 1)} => ${inspect(v, depth + 1)}`), "}")
+        if (x instanceof Set) return `Set(${x.size}) ` + list("{", [...x].map((v) => inspect(v, depth + 1)), "}")
+        if (x instanceof Date) return x.toISOString()
+        if (x instanceof Promise) return "Promise { <pending> }"
+        const name = x.constructor && x.constructor !== Object ? `${x.constructor.name} ` : ""
+        return name + list("{", Object.entries(x).map(([k, v]) => `${key(k)}: ${inspect(v, depth + 1)}`), "}")
+      }
+
+      let verdict
+      for (const [method, kind] of [["log", "out"], ["info", "out"], ["warn", "err"], ["error", "err"]]) {
+        const original = console[method].bind(console)
+        console[method] = (...args) => {
+          const text = args.map((a) => inspect(a)).join(" ")
+          if (text.startsWith(MARK)) return (verdict = JSON.parse(text.slice(MARK.length)))
+          send({ type: "line", kind, text })
+          original(...args)
+        }
+      }
+      addEventListener("error", (e) => send({ type: "line", kind: "err", text: String(e.message) }))
+      addEventListener("unhandledrejection", (e) =>
+        send({ type: "line", kind: "err", text: `Uncaught ${inspect(e.reason)}` })
+      )
+
+      const blob = (js) => URL.createObjectURL(new Blob([js], { type: "text/javascript" }))
+
+      addEventListener("message", async ({ data }) => {
+        if (!data?.thonglearn) return
+        const started = performance.now()
+        const done = (patch) => send({ type: "done", ms: Math.round(performance.now() - started), ...patch })
+        const main = blob(data.main)
+        try {
+          await import(data.check ? blob(data.check.replaceAll('"./main.js"', JSON.stringify(main))) : main)
+          done(data.check ? { check: verdict ?? { pass: false, message: "The check didn't finish." } } : {})
+        } catch (e) {
+          // Stack frames point at the emitted main.js; its lines match main.ts closely enough for a hint.
+          const line = String(e?.stack).split(main + ":")[1]
+          done({ error: `${e?.name ?? "Error"}: ${e?.message ?? e}`, errorLine: Number(line?.split(":")[0]) || undefined })
+        }
+      })
+    </script>
+  </body>
+</html>

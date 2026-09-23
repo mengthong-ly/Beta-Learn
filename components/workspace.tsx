@@ -31,7 +31,7 @@ import { HistoryList } from "@/components/history-list"
 import { InspectPane } from "@/components/inspect-pane"
 import { Mascot } from "@/components/mascot"
 import { OutputPane } from "@/components/output-pane"
-import { PreviewPane } from "@/components/preview-pane"
+import { PreviewPane, ScriptFrame } from "@/components/preview-pane"
 import { SolutionCompare } from "@/components/solution-compare"
 import { Button } from "@/components/ui/button"
 import {
@@ -74,7 +74,7 @@ import { db } from "@/lib/db"
 import { pushRow } from "@/lib/sync"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
 import { playground, type Lesson } from "@/lib/lesson-parser"
-import { reset, run, show, stop, useCanRun, useRunner, warmPython } from "@/lib/runner"
+import { reset, run, show, stop, useCanRun, useRunner, warm } from "@/lib/runner"
 
 // Monaco touches `window`; render it only in the browser.
 const CodeEditor = dynamic(
@@ -219,7 +219,7 @@ export function Workspace({
   const compact = useMediaQuery("(max-width: 1023px)")
 
   useEffect(() => {
-    if (c.runtime === "pyodide") warmPython()
+    warm(c.runtime)
   }, [c.runtime])
 
   // Load the draft (or starter) when switching docs.
@@ -469,6 +469,7 @@ export function Workspace({
       </div>
       <TabsContent value="output" className="min-h-0">
         <OutputPane state={state} writeOnly={canRun ? undefined : c.name} />
+        <ScriptFrame state={state} />
       </TabsContent>
       {preview && (
         // Always mounted: a React run renders here even while the Output tab is showing.

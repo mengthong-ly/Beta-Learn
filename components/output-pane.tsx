@@ -178,7 +178,7 @@ export function OutputPane({ state, writeOnly }: { state: RunState; writeOnly?: 
                       )}
                     </span>
                     <span className={cn(active && "text-foreground")}>
-                      {(p === "running" && state.label) || PHASE_LABEL[p]}
+                      {(p === "running" && state.label) || (p === "booting" && state.booting) || PHASE_LABEL[p]}
                     </span>
                   </motion.li>
                 )
