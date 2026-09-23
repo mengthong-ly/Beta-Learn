@@ -57,7 +57,7 @@ export default function Landing() {
       <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-4 py-10 text-center">
         <span className={`${ENTER} delay-100 flex items-center gap-1.5 rounded-full border border-foreground/15 bg-foreground/5 px-3 py-1 text-xs text-muted-foreground backdrop-blur`}>
           <SparklesIcon className="size-3.5" />
-          Python runs right in your browser
+          Python, TypeScript and PHP run right in your browser
         </span>
         <h1 className={`${ENTER} delay-200 mt-6 text-4xl font-medium tracking-tight text-balance sm:text-6xl lg:text-7xl`}>
           Learn to code by running real code
