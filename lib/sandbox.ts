@@ -65,7 +65,7 @@ async function findLaunchers() {
  * the Flutter SDK, and the Dart SDK behind the dart launcher.
  */
 function toolchainRoots(): string[] {
-  const bins = ["php", "dart", "flutter", "node", "composer"].map(which).filter((p): p is string => !!p)
+  const bins = ["dart", "flutter"].map(which).filter((p): p is string => !!p)
   return [
     ...[...bins.map((p) => realpathSync(p)), ...(launchers.dart ?? [])].map((p) => path.dirname(path.dirname(p))),
     ...(flutterRoot ? [flutterRoot] : []),

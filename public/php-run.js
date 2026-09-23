@@ -63,3 +63,32 @@ export async function runPhp(php, { code, check, file = "index.php", boot, env }
   }
   return { lines, check: verdict }
 }
+
+/** Laravel lessons run inside a real Laravel 13 app (public/laravel-app.json.gz, from
+ *  scripts/build-laravel-snapshot.ts), booted fresh for each run by thonglearn-run.php. */
+export const LARAVEL = {
+  file: "lesson.php",
+  boot: "/laravel/thonglearn-run.php",
+  env: {
+    APP_ENV: "local",
+    DB_CONNECTION: "sqlite",
+    DB_DATABASE: ":memory:",
+    CACHE_STORE: "array",
+    SESSION_DRIVER: "array",
+    QUEUE_CONNECTION: "sync",
+    MAIL_MAILER: "log",
+    LOG_CHANNEL: "stderr",
+  },
+}
+
+/** Copies the unpacked app ({ path: text }) into a fresh PHP instance: ~5,700 files in ~70 ms. */
+export function mountLaravel(php, files) {
+  const dirs = new Set()
+  for (const p of Object.keys(files)) {
+    const parts = p.split("/")
+    for (let i = 1; i < parts.length; i++) dirs.add(parts.slice(0, i).join("/"))
+  }
+  php.mkdir("/laravel")
+  for (const d of [...dirs].sort((a, b) => a.length - b.length)) php.mkdir(`/laravel/${d}`)
+  for (const [p, text] of Object.entries(files)) php.writeFile(`/laravel/${p}`, text)
+}

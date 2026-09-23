@@ -3,8 +3,8 @@
 //   guide:   every example runs (blocks with an "error!" comment are meant to fail)
 // Python runs in Pyodide (anything on stderr, e.g. a pandas FutureWarning, fails; the Inspect
 // collector runs too). TypeScript compiles with the browser runtime's compiler (public/ts-compile.js)
-// and runs in Node; PHP runs on the browser runtime's php-wasm build for Node (public/php-run.js).
-// Laravel, Dart, C++ and Flutter run on the local toolchains
+// and runs in Node; PHP and Laravel run on the browser runtime's php-wasm build for Node
+// (public/php-run.js, public/laravel-app.json.gz). Dart, C++ and Flutter run on the local toolchains
 // (lib/local-runner.ts, needs `npm run setup:runtimes`). React is transpiled and server-rendered.
 // Examples are fences in the course's language (```php); use ```php-snippet for code that isn't
 // a whole runnable program.
@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { gunzipSync } from "node:zlib"
 
 import { courses, type Course } from "../lib/courses.ts"
 import { parseLesson, type Output } from "../lib/lesson-parser.ts"
@@ -155,10 +156,11 @@ async function typescript(): Promise<Execute> {
 }
 
 // --- PHP: the browser runtime's PHP 8.5 (php-wasm) for Node, one CLI instance per run. ---
-async function php(): Promise<Execute> {
+async function php(laravel: boolean): Promise<Execute> {
   const { PHP, loadPHPRuntime } = await import("@php-wasm/universal")
   const { getPHPLoaderModule } = await import("@php-wasm/node-8-5")
-  const { runPhp } = await import("../public/php-run.js")
+  const { LARAVEL, mountLaravel, runPhp } = await import("../public/php-run.js")
+  const app = laravel && JSON.parse(gunzipSync(readFileSync(new URL("../public/laravel-app.json.gz", import.meta.url))).toString())
   const loader = await getPHPLoaderModule()
   // Compile the 21 MB module once; each run then gets a fresh instance in ~30 ms.
   const wasm = await WebAssembly.compile(readFileSync(loader.dependencyFilename))
@@ -166,7 +168,11 @@ async function php(): Promise<Execute> {
     WebAssembly.instantiate(wasm, imports).then((i) => receive(i, wasm))
     return {}
   }
-  return async (code, check) => runPhp(new PHP(await loadPHPRuntime(loader, { instantiateWasm })), { code, check })
+  return async (code, check) => {
+    const instance = new PHP(await loadPHPRuntime(loader, { instantiateWasm }))
+    if (app) mountLaravel(instance, app)
+    return runPhp(instance, app ? { code, check, ...LARAVEL } : { code, check })
+  }
 }
 
 const local =
@@ -178,7 +184,7 @@ async function executor(c: Course): Promise<Execute> {
   if (c.runtime === "pyodide") return python()
   if (c.runtime === "react") return react()
   if (c.runtime === "ts") return typescript()
-  if (c.runtime === "php") return php()
+  if (c.runtime === "php") return php(c.id === "laravel")
   return local(c.id as LocalCourse)
 }
 

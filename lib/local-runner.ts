@@ -1,4 +1,4 @@
-// Runs lesson code with the learner's own toolchains (c++, dart, flutter, php, tsc/node).
+// Runs lesson code with the learner's own toolchains (c++, dart, flutter).
 // Used by app/api/run (opt-in, see docs/adr/0001-local-runner.md) and scripts/check-content.ts.
 // Every lesson process runs in the OS sandbox (lib/sandbox.ts) with a scrubbed env.
 // No path aliases, erasable TypeScript only: Node runs this file directly.
@@ -22,7 +22,6 @@ export type LocalResult = {
 }
 
 export const LOCAL_COURSES = [
-  "laravel",
   "cpp",
   "dart",
   "flutter",
@@ -31,14 +30,12 @@ export type LocalCourse = (typeof LOCAL_COURSES)[number]
 
 export const RUNTIMES = path.join(process.cwd(), "runtimes")
 const SUPPORT = path.join(RUNTIMES, "_support")
-const LARAVEL = path.join(RUNTIMES, "laravel")
 const FLUTTER = path.join(RUNTIMES, "flutter")
 
 /** Check wrappers report on stderr with this prefix, then JSON: {"pass": bool, "message"?: string}. */
 export const CHECK_MARK = "@@thonglearn-check "
 const MAX_OUTPUT = 256_000
 const TIMEOUT: Record<LocalCourse, number> = {
-  laravel: 30_000,
   cpp: 30_000,
   dart: 30_000,
   flutter: 300_000,
@@ -162,61 +159,6 @@ async function withTemp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
-}
-
-const stripPhpTag = (s: string) => s.replace(/^\s*<\?php\s*/, "")
-
-// --- PHP and Laravel: the check runs in the same process, after the lesson file. ---
-function phpCheckWrapper(file: string, check: string) {
-  return `<?php
-function expect(bool $ok, string $message = 'Check failed'): void { if (!$ok) throw new \\Exception($message); }
-ob_start();
-require __DIR__ . '/${file}';
-$output = ob_get_clean();
-echo $output;
-try {
-${stripPhpTag(check)}
-  fwrite(STDERR, "${CHECK_MARK}" . json_encode(['pass' => true]) . "\\n");
-} catch (\\Throwable $e) {
-  fwrite(STDERR, "${CHECK_MARK}" . json_encode(['pass' => false, 'message' => $e->getMessage()]) . "\\n");
-}
-`
-}
-
-async function runPhp(course: "php" | "laravel", code: string, check: string | undefined, signal?: AbortSignal) {
-  const file = course === "php" ? "index.php" : "lesson.php"
-  return withTemp(async (dir) => {
-    await writeFile(path.join(dir, file), code)
-    const entry = check ? "check.php" : file
-    if (check) await writeFile(path.join(dir, entry), phpCheckWrapper(file, check))
-    const ini = ["-d", "display_errors=stderr", "-d", "log_errors=0", "-d", "zend.assertions=1", "-d", "assert.exception=1"]
-    const args =
-      course === "php"
-        ? [...ini, entry]
-        : [...ini, path.join(LARAVEL, "thonglearn-run.php"), path.join(dir, entry)]
-    const started = Date.now()
-    const r = await runProcess("php", args, {
-      cwd: dir,
-      timeout: course === "php" ? 15_000 : TIMEOUT[course],
-      signal,
-      // Laravel writes compiled views and caches into its sandbox project.
-      sandbox: course === "php" ? [dir] : [dir, path.join(LARAVEL, "storage"), path.join(LARAVEL, "bootstrap/cache")],
-      env:
-        course === "laravel"
-          ? {
-              APP_ENV: "local",
-              DB_CONNECTION: "sqlite",
-              DB_DATABASE: ":memory:",
-              CACHE_STORE: "array",
-              SESSION_DRIVER: "array",
-              QUEUE_CONNECTION: "sync",
-              MAIL_MAILER: "log",
-              LOG_CHANNEL: "stderr",
-            }
-          : undefined,
-    })
-    return settle(r, started, dir, file, new RegExp(`${file.replace(".", "\\.")}(?: on line |:)(\\d+)`))
-  })
 }
 
 // --- C++: the learner's own compiler (`c++`); the check includes the lesson as a header. ---
@@ -437,8 +379,6 @@ export function runLocal(
   opts: { signal?: AbortSignal; flutterMode?: "run" | "test" } = {}
 ): Promise<LocalResult> {
   switch (course) {
-    case "laravel":
-      return runPhp(course, code, check, opts.signal)
     case "cpp":
       return runCpp(code, check, opts.signal)
     case "dart":
@@ -462,18 +402,15 @@ export async function toolStatus() {
     const r = await runProcess(cmd, args, { cwd: process.cwd(), timeout: 60_000 })
     return r.code === 0 ? (r.stdout + r.stderr).trim().split("\n")[0] : undefined
   }
-  const [php, cpp, dart, flutter] = await Promise.all([
-    version("php", ["-r", "echo PHP_VERSION;"]),
+  const [cpp, dart, flutter] = await Promise.all([
     version("c++", ["--version"]),
     version("dart", ["--version"]),
     version("flutter", ["--version"]),
   ])
   return {
-    php,
     cpp,
     dart,
     flutter,
-    laravel: existsSync(path.join(LARAVEL, "thonglearn-run.php")),
     flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")),
     support: existsSync(SUPPORT),
     /** Why runs can't be sandboxed here (lib/sandbox.ts), if they can't */

@@ -16,7 +16,6 @@ const t = async (name: string, p: Promise<LocalResult>, f: (r: LocalResult) => v
 }
 // PHP
 // Laravel
-await t("laravel str + db", runLocal("laravel", "<?php\nuse Illuminate\\Support\\Facades\\DB;\nuse Illuminate\\Support\\Facades\\Route;\necho Illuminate\\Support\\Str::of('hello world')->title(), PHP_EOL;\necho DB::table('users')->count(), PHP_EOL;\nRoute::get('/hi', fn () => 'Hi there');\necho visit('/hi')->getContent();"), (r) => { assert.equal(r.error, undefined, r.error); assert.deepEqual(r.lines.map((l) => l.text), ["Hello World", "0", "Hi there"]) })
 // TypeScript
 // C++
 await t("cpp run", runLocal("cpp", '#include <iostream>\nint main() {\n  std::cout << "hi\\n";\n}'), (r) => { assert.equal(r.error, undefined, r.error); assert.deepEqual(r.lines, [{ kind: "out", text: "hi" }]) })
@@ -36,7 +35,6 @@ const blocked = (r: LocalResult) => {
   assert.doesNotMatch(text, /LEAKED/, "sandbox let the secret through")
 }
 process.env.THONGLEARN_ESCAPE_TEST = "LEAKED"
-await t("sandbox: laravel can't read .env.local", runLocal("laravel", "<?php\necho @file_get_contents(base_path('../../.env.local')) !== false ? 'LEAKED' : 'ok';"), blocked)
 await t("sandbox: dart can't read ~", runLocal("dart", "import 'dart:io';\nvoid main() {\n  try { File('${Platform.environment['HOME']}/.zshrc').readAsStringSync(); print('LEAKED'); } catch (_) { print('ok'); }\n}"), blocked)
 // Flutter's HOME is private (runtimes/.flutter-home), so aim at the real one.
 await t("sandbox: flutter test can't read ~", runLocal("flutter", `import 'dart:io';\nimport 'package:flutter/material.dart';\nString leak() { try { return File('${homedir()}/.zshrc').readAsStringSync(); } catch (_) { return Platform.environment['THONGLEARN_ESCAPE_TEST'] ?? 'ok'; } }\nvoid main() => runApp(const SizedBox());`, "    expect(app.leak(), 'ok');", { flutterMode: "test" }), (r) => assert.equal(r.check?.pass, true, JSON.stringify(r)))

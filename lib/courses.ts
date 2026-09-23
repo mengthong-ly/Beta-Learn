@@ -37,7 +37,7 @@ export const courses = [
     name: "Laravel 13",
     mark: "La",
     tagline: "Routing, Eloquent and the rest of the framework, run in a real app.",
-    runtime: "local",
+    runtime: "php",
     lang: "php",
     file: "lesson.php",
     comment: "//",

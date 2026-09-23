@@ -35,8 +35,8 @@ export type RunState = {
   runKey: number
   /** what the "running" step says, e.g. "Running with dart" */
   label?: string
-  /** what the "booting" step says, e.g. "Loading Python…" */
-  booting?: string
+  /** what the booting/installing steps say for this runtime, e.g. "Loading Python…" */
+  labels?: Partial<Record<Phase, string>>
   /** React and Flutter render into the Preview tab */
   preview?:
     | { kind: "react"; code: string; check?: string }
@@ -69,9 +69,21 @@ function set(patch: Partial<RunState>, now = true) {
 
 // Runtimes that live in a module worker, served unbundled from /public (see python.worker.js).
 const WORKERS = {
-  pyodide: { url: "/python.worker.js", booting: "Loading Python (first run downloads ~10 MB)" },
-  ts: { url: "/ts.worker.js", booting: "Loading TypeScript (first run downloads ~3 MB)" },
-  php: { url: "/php.worker.js", booting: "Loading PHP (first run downloads ~6 MB)" },
+  pyodide: {
+    url: "/python.worker.js",
+    labels: {
+      booting: "Loading Python (first run downloads ~10 MB)",
+      installing: "Downloading pandas & numpy (first use only)",
+    },
+  },
+  ts: { url: "/ts.worker.js", labels: { booting: "Loading TypeScript (first run downloads ~3 MB)" } },
+  php: {
+    url: "/php.worker.js",
+    labels: {
+      booting: "Loading PHP (first run downloads ~6 MB)",
+      installing: "Downloading the Laravel app (first use only, ~5 MB)",
+    },
+  },
 } as const
 type WorkerRuntime = keyof typeof WORKERS
 const isWorker = (runtime: string): runtime is WorkerRuntime => runtime in WORKERS
@@ -199,9 +211,9 @@ export function run(
       ...fresh,
       preview: undefined,
       phase: booted.has(runtime) ? "compiling" : "booting",
-      booting: WORKERS[runtime].booting,
+      labels: WORKERS[runtime].labels,
     })
-    workers[runtime]!.postMessage({ code, check })
+    workers[runtime]!.postMessage({ code, check, course: course.id })
   } else if (course.runtime === "react") {
     set({ ...fresh, phase: "running", label: "Rendering", preview: { kind: "react", code, check } })
     startTimer()

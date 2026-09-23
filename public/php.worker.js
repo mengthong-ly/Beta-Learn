@@ -1,9 +1,9 @@
 // ThongLearn's PHP runtime: PHP 8.5 compiled to WebAssembly (WordPress Playground's php-wasm),
 // loaded from jsDelivr, never bundled or hosted by us (it's GPL). The 21 MB module compiles once;
 // every run gets a fresh PHP instance and runs the php CLI through public/php-run.js, like
-// the local runner did. Speaks the Python worker's protocol: { type: "ready" | "phase" | "done" }.
+// the local runner did. Laravel lessons also get the app from /laravel-app.json.gz, copied in. Speaks the Python worker's protocol: { type: "ready" | "phase" | "done" }.
 // Unbundled module worker in /public, like python.worker.js.
-import { runPhp } from "/php-run.js"
+import { LARAVEL, mountLaravel, runPhp } from "/php-run.js"
 
 const V = "3.1.55"
 const ready = (async () => {
@@ -28,11 +28,23 @@ const ready = (async () => {
   return async () => new PHP(await loadPHPRuntime(loader, { instantiateWasm }))
 })()
 
-self.onmessage = async ({ data: { code, check } }) => {
+let laravel // the unpacked app, fetched on the first Laravel run
+const loadLaravel = async () => {
+  const res = await fetch("/laravel-app.json.gz")
+  return JSON.parse(await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).text())
+}
+
+self.onmessage = async ({ data: { code, check, course } }) => {
   const fresh = await ready
+  if (course === "laravel" && !laravel) {
+    postMessage({ type: "phase", phase: "installing" })
+    laravel = await loadLaravel()
+  }
   const started = performance.now()
   postMessage({ type: "phase", phase: "running" })
-  const r = await runPhp(await fresh(), { code, check })
+  const php = await fresh()
+  if (course === "laravel") mountLaravel(php, laravel)
+  const r = await runPhp(php, course === "laravel" ? { code, check, ...LARAVEL } : { code, check })
   for (const l of r.lines) postMessage({ type: "line", ...l })
   postMessage({ type: "done", ms: Math.round(performance.now() - started), error: r.error, errorLine: r.errorLine, check: r.check })
 }
