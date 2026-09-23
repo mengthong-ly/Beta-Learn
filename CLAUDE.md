@@ -2,7 +2,7 @@
 
 # ThongLearn
 
-Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, Flutter, Claude Code). In the browser: Python via Pyodide, React in a sandboxed iframe, TypeScript/Claude Code via TypeScript 6 in a worker, PHP/Laravel via php-wasm in a worker (`docs/adr/0002-browser-runtimes.md`). C++, Dart and Flutter run on the learner's own toolchains through the local runner (`lib/local-runner.ts`, `/api/run`, `docs/adr/0001-local-runner.md`), only in a local copy: on the website they're write-only, and the website never calls the learner's machine. There is no server-side code execution.
+Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, Flutter, Claude Code). In the browser: Python via Pyodide, React in a sandboxed iframe, TypeScript/Claude Code via TypeScript 6 in a worker, PHP/Laravel via php-wasm in a worker (`docs/adr/0002-browser-runtimes.md`), C++ via clang in wasm in a worker (`docs/adr/0003-cpp-in-the-browser.md`). Dart and Flutter run on the learner's own toolchains through the local runner (`lib/local-runner.ts`, `/api/run`, `docs/adr/0001-local-runner.md`), only in a local copy: on the website they're write-only, and the website never calls the learner's machine. There is no server-side code execution.
 
 Developer docs: `docs/README.md` (index), `docs/adding-a-lesson.md` (step-by-step for new lessons), `docs/architecture.md`, `docs/tech-stack.md`, `docs/runtimes.md`, `docs/content-authoring.md`, `docs/accounts-and-storage.md`. Read the one covering the area you're changing before you start.
 

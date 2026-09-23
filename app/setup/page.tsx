@@ -18,7 +18,7 @@ export default function SetupPage() {
         Your computer
       </h1>
       <p className="mt-2 text-muted-foreground">
-        C++, Dart and Flutter lessons run on the toolchains installed on your computer.
+        Dart and Flutter lessons run on the toolchains installed on your computer.
         Everything else runs right in your browser.
       </p>
       <SetupStatus />

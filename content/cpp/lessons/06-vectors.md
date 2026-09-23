@@ -58,6 +58,8 @@ int main() {
 
 `v[i]` doesn't check the index. `v.at(i)` does, and throws `std::out_of_range` if it's wrong. Reading `v[5]` of a three-element vector is undefined behaviour: it may print garbage, corrupt memory, or appear to work.
 
+> ℹ️ **In ThongLearn:** the in-browser clang has exceptions switched off, so a bad `at()` here stops the program instead of throwing a catchable `std::out_of_range`. Either way it tells you; `v[5]` is the one that stays quiet.
+
 ## Looping
 
 The range-based `for` is the normal way to visit every element:

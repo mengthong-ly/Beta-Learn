@@ -60,6 +60,8 @@ int main() {
 }
 ```
 
+> ℹ️ **In ThongLearn:** the in-browser clang is built without exception support, so here a failed `at()` or `std::stoi` **stops the program** instead of throwing something you could catch. The rule is still C++ — you'll see the real exception on a desktop compiler.
+
 > ⚠️ **Gotcha:** `npos` is the largest `std::size_t`, not `-1` and not `0`. `if (email.find('@'))` is true even when the match is at index 0 and when there's no match at all — the comparison has to be explicit.
 
 ## Changing a string
