@@ -31,7 +31,8 @@ import { HistoryList } from "@/components/history-list"
 import { InspectPane } from "@/components/inspect-pane"
 import { Mascot } from "@/components/mascot"
 import { OutputPane } from "@/components/output-pane"
-import { PreviewPane } from "@/components/preview-pane"
+import { PreviewPane, ScriptFrame } from "@/components/preview-pane"
+import { SolutionCompare } from "@/components/solution-compare"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -73,7 +74,7 @@ import { db } from "@/lib/db"
 import { pushRow } from "@/lib/sync"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
 import { playground, type Lesson } from "@/lib/lesson-parser"
-import { reset, run, show, stop, useRunner, warmPython } from "@/lib/runner"
+import { reset, run, show, stop, useCanRun, useRunner, warm } from "@/lib/runner"
 
 // Monaco touches `window`; render it only in the browser.
 const CodeEditor = dynamic(
@@ -157,7 +158,8 @@ export function Workspace({
 }) {
   const router = useRouter()
   const c = findCourse(course)
-  const preview = hasPreview(c)
+  const canRun = useCanRun(c)
+  const preview = hasPreview(c) && canRun
   const [, , route, param] = usePathname().split("/")
   const runId = route === "run" ? Number(param) : undefined
   const savedRun = useLiveQuery(
@@ -203,6 +205,7 @@ export function Workspace({
   const state = useRunner()
   const [code, setCode] = useState("")
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [comparing, setComparing] = useState(false)
   const [tab, setTab] = useState("output")
   const [mobileTab, setMobileTab] = useState("read")
   // A line picked in the Inspect tab; cleared whenever a new run starts.
@@ -216,7 +219,7 @@ export function Workspace({
   const compact = useMediaQuery("(max-width: 1023px)")
 
   useEffect(() => {
-    if (c.runtime === "pyodide") warmPython()
+    warm(c.runtime)
   }, [c.runtime])
 
   // Load the draft (or starter) when switching docs.
@@ -252,6 +255,7 @@ export function Workspace({
   }
 
   const execute = async (withCheck = false) => {
+    if (!canRun) return
     setOpen(panes.current, rightPane.current, true)
     setTab(preview && !(withCheck && c.id === "flutter") ? "preview" : "output")
     setMobileTab("output")
@@ -341,7 +345,7 @@ export function Workspace({
     edit(c)
     setOpen(panes.current, editorPane.current, true)
     setMobileTab("code")
-    toast("Loaded into the editor", { description: "Press ⌘↵ to run it." })
+    toast("Loaded into the editor", canRun ? { description: "Press ⌘↵ to run it." } : undefined)
   }
 
   const editor = (
@@ -365,18 +369,31 @@ export function Workspace({
           </Button>
         </Tip>
         {doc.solution && (
-          <Tip label="Show solution">
+          <Tip label={canRun ? "Show solution" : "Compare with the solution"}>
             <Button
               size="icon-sm"
               variant="ghost"
-              aria-label="Show solution"
-              onClick={() => edit(doc.solution!)}
+              aria-label={canRun ? "Show solution" : "Compare with the solution"}
+              onClick={() => (canRun ? edit(doc.solution!) : setComparing(true))}
             >
               <LightbulbIcon />
             </Button>
           </Tip>
         )}
-        {doc.check && (
+        {!canRun && doc.solution && (
+          <SolutionCompare
+            doc={doc}
+            code={code}
+            language={c.lang}
+            open={comparing}
+            onOpenChange={setComparing}
+            onLoad={() => {
+              edit(doc.solution!)
+              setComparing(false)
+            }}
+          />
+        )}
+        {canRun && doc.check && (
           <Tip label="Run and check the challenge">
             <Button
               size="sm"
@@ -389,7 +406,7 @@ export function Workspace({
             </Button>
           </Tip>
         )}
-        {running ? (
+        {!canRun ? null : running ? (
           <Tip label="Stop" keys={["⌘", "."]}>
             <Button size="sm" variant="secondary" onClick={stop}>
               <SquareIcon data-icon="inline-start" />
@@ -451,7 +468,8 @@ export function Workspace({
         </TabsList>
       </div>
       <TabsContent value="output" className="min-h-0">
-        <OutputPane state={state} />
+        <OutputPane state={state} writeOnly={canRun ? undefined : c.name} />
+        <ScriptFrame state={state} />
       </TabsContent>
       {preview && (
         // Always mounted: a React run renders here even while the Output tab is showing.

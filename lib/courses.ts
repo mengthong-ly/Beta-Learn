@@ -3,6 +3,8 @@
  *
  * runtime: where code runs.
  *   "pyodide" Python in a browser worker (public/python.worker.js)
+ *   "php"     PHP 8.5 (php-wasm) in a browser worker (public/php.worker.js) (ADR-0002)
+ *   "ts"      TypeScript 6 in a browser worker (public/ts.worker.js), run in a sandboxed iframe (ADR-0002)
  *   "local"   the learner's own toolchain through the opt-in /api/run route (ADR-0001)
  *   "react"   a sandboxed browser iframe (public/react-preview.html)
  * lang: the fence name in lessons ("```dart starter") and the Monaco language.
@@ -24,7 +26,7 @@ export const courses = [
     name: "PHP",
     mark: "Ph",
     tagline: "The language behind most of the web, from syntax to fibers.",
-    runtime: "local",
+    runtime: "php",
     lang: "php",
     file: "index.php",
     comment: "//",
@@ -35,7 +37,7 @@ export const courses = [
     name: "Laravel 13",
     mark: "La",
     tagline: "Routing, Eloquent and the rest of the framework, run in a real app.",
-    runtime: "local",
+    runtime: "php",
     lang: "php",
     file: "lesson.php",
     comment: "//",
@@ -45,8 +47,8 @@ export const courses = [
     id: "typescript",
     name: "TypeScript",
     mark: "Ts",
-    tagline: "JavaScript with types, checked by the real TypeScript 7 compiler.",
-    runtime: "local",
+    tagline: "JavaScript with types, checked by the TypeScript compiler in your browser.",
+    runtime: "ts",
     lang: "typescript",
     file: "main.ts",
     comment: "//",
@@ -102,7 +104,7 @@ export const courses = [
     name: "Claude Code",
     mark: "Cc",
     tagline: "Skills, MCP servers and agentic workflows, practised in TypeScript.",
-    runtime: "local",
+    runtime: "ts",
     lang: "typescript",
     file: "main.ts",
     comment: "//",

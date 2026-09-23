@@ -35,6 +35,7 @@ export function PreviewPane({ state }: { state: RunState }) {
         className="size-full border-0 bg-white"
       />
     )
+  if (p.kind !== "react") return null
   return (
     <iframe
       key={state.runKey}
@@ -48,6 +49,25 @@ export function PreviewPane({ state }: { state: RunState }) {
           { thonglearn: true, code: p.code, check: p.check },
           "*"
         )
+      }
+    />
+  )
+}
+
+/** TypeScript runs out of sight: a hidden sandboxed iframe (public/ts-run.html) per run. */
+export function ScriptFrame({ state }: { state: RunState }) {
+  const p = state.preview
+  if (p?.kind !== "script") return null
+  return (
+    <iframe
+      key={state.runKey}
+      ref={(el) => setPreviewFrame(el?.contentWindow ?? null)}
+      src="/ts-run.html"
+      sandbox="allow-scripts"
+      title="TypeScript runner"
+      hidden
+      onLoad={(e) =>
+        e.currentTarget.contentWindow?.postMessage({ thonglearn: true, main: p.main, check: p.check }, "*")
       }
     />
   )

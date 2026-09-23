@@ -2,21 +2,26 @@
 //   lessons: the solution passes its check, the starter does NOT, every example runs
 //   guide:   every example runs (blocks with an "error!" comment are meant to fail)
 // Python runs in Pyodide (anything on stderr, e.g. a pandas FutureWarning, fails; the Inspect
-// collector runs too). PHP, Laravel, TypeScript, Dart and Flutter run on the local toolchains
+// collector runs too). TypeScript compiles with the browser runtime's compiler (public/ts-compile.js)
+// and runs in Node; PHP and Laravel run on the browser runtime's php-wasm build for Node
+// (public/php-run.js, public/laravel-app.json.gz). Dart, C++ and Flutter run on the local toolchains
 // (lib/local-runner.ts, needs `npm run setup:runtimes`). React is transpiled and server-rendered.
 // Examples are fences in the course's language (```php); use ```php-snippet for code that isn't
 // a whole runnable program.
 // Usage: npm run check:content [-- course ...]    e.g. npm run check:content -- php dart
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { gunzipSync } from "node:zlib"
 
 import { courses, type Course } from "../lib/courses.ts"
-import { parseLesson } from "../lib/lesson-parser.ts"
+import { parseLesson, type Output } from "../lib/lesson-parser.ts"
+import { examples as examplesIn, outputKey, readOutputs, writeOutputs } from "../lib/outputs.ts"
 import { runLocal, type LocalCourse } from "../lib/local-runner.ts"
 import { cleanTraceback } from "../public/traceback.js"
 
-type Result = { error?: string; check?: { pass: boolean; message?: string } }
+type Result = { error?: string; check?: { pass: boolean; message?: string }; lines?: Output["lines"] }
 type Execute = (code: string, check?: string) => Promise<Result>
 
 // --- Python: Pyodide in Node, set up exactly like public/python.worker.js ---
@@ -113,6 +118,63 @@ async function react(): Promise<Execute> {
   }
 }
 
+// --- TypeScript: the browser runtime's compiler (TS 6, in memory), then Node runs the output. ---
+async function typescript(): Promise<Execute> {
+  const { default: ts } = await import("typescript-6")
+  const { compile, CHECK_MARK } = await import("../public/ts-compile.js")
+  const read = (f: string) =>
+    JSON.parse(readFileSync(new URL(`../public/generated/ts/${f}`, import.meta.url), "utf8"))
+  const files = { ...read("libs.json"), ...read("mcp-types.json") }
+  const cache = path.join(process.cwd(), "node_modules/.cache/thonglearn")
+  mkdirSync(cache, { recursive: true })
+  return async (code, check) => {
+    const js = compile(ts, files, code, check)
+    if (js.error) return { error: js.error, lines: [] }
+    // Inside the repo, so Node finds @modelcontextprotocol/sdk and zod in node_modules.
+    const dir = mkdtempSync(path.join(cache, "ts-"))
+    try {
+      writeFileSync(path.join(dir, "package.json"), '{ "type": "module" }')
+      writeFileSync(path.join(dir, "main.js"), js.main)
+      if (js.check) writeFileSync(path.join(dir, "check.js"), js.check)
+      const r = spawnSync("node", [js.check ? "check.js" : "main.js"], { cwd: dir, encoding: "utf8", timeout: 20_000 })
+      let verdict: Result["check"]
+      const err = r.stderr.split("\n").filter((l) => {
+        if (!l.startsWith(CHECK_MARK)) return true
+        verdict = JSON.parse(l.slice(CHECK_MARK.length))
+        return false
+      })
+      const lines = [
+        ...r.stdout.split("\n").filter(Boolean).map((text) => ({ kind: "out" as const, text })),
+        ...err.filter(Boolean).map((text) => ({ kind: "err" as const, text })),
+      ]
+      if (r.status !== 0 && !verdict) return { error: err.join("\n").trim() || `exit ${r.status}`, lines }
+      return { check: verdict, lines }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+}
+
+// --- PHP: the browser runtime's PHP 8.5 (php-wasm) for Node, one CLI instance per run. ---
+async function php(laravel: boolean): Promise<Execute> {
+  const { PHP, loadPHPRuntime } = await import("@php-wasm/universal")
+  const { getPHPLoaderModule } = await import("@php-wasm/node-8-5")
+  const { LARAVEL, mountLaravel, runPhp } = await import("../public/php-run.js")
+  const app = laravel && JSON.parse(gunzipSync(readFileSync(new URL("../public/laravel-app.json.gz", import.meta.url))).toString())
+  const loader = await getPHPLoaderModule()
+  // Compile the 21 MB module once; each run then gets a fresh instance in ~30 ms.
+  const wasm = await WebAssembly.compile(readFileSync(loader.dependencyFilename))
+  const instantiateWasm = (imports: WebAssembly.Imports, receive: (i: WebAssembly.Instance, m: WebAssembly.Module) => void) => {
+    WebAssembly.instantiate(wasm, imports).then((i) => receive(i, wasm))
+    return {}
+  }
+  return async (code, check) => {
+    const instance = new PHP(await loadPHPRuntime(loader, { instantiateWasm }))
+    if (app) mountLaravel(instance, app)
+    return runPhp(instance, app ? { code, check, ...LARAVEL } : { code, check })
+  }
+}
+
 const local =
   (course: LocalCourse): Execute =>
   (code, check) =>
@@ -121,14 +183,29 @@ const local =
 async function executor(c: Course): Promise<Execute> {
   if (c.runtime === "pyodide") return python()
   if (c.runtime === "react") return react()
+  if (c.runtime === "ts") return typescript()
+  if (c.runtime === "php") return php(c.id === "laravel")
   return local(c.id as LocalCourse)
 }
 
-const only = process.argv.slice(2)
+// --record saves each example's and solution's real output for the courses the website can't run
+// (Flutter prints nothing worth showing), so write-only lessons can show it.
+const record = process.argv.includes("--record")
+const only = process.argv.slice(2).filter((a) => a !== "--record")
 let failed = 0
 for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
   const execute = await executor(c)
-  const examplesRe = new RegExp("```" + c.lang + "\\n([\\s\\S]*?)```", "g")
+  const recorded = c.runtime === "local" && c.id !== "flutter"
+  const outputs = recorded ? readOutputs(c.id) : {}
+  const fresh: Record<string, Output> = {}
+  /** Records r (or runs code for it) under --record; otherwise reports a missing recording. */
+  const note = async (code: string, r?: Result) => {
+    if (!recorded) return
+    const k = outputKey(code)
+    if (!record) return outputs[k] ? undefined : `no recorded output: run npm run check:content -- --record ${c.id}`
+    r ??= await execute(code)
+    fresh[k] = { lines: r.lines ?? [], ...(r.error && { error: r.error }) }
+  }
   const marksError = (code: string) => /(#|\/\/) error!/.test(code)
   for (const dir of ["lessons", "guide"] as const) {
     const folder = new URL(`../content/${c.id}/${dir}/`, import.meta.url)
@@ -165,9 +242,11 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
           const start = await execute(l.starter, l.check)
           if (start.check?.pass && start.check.message !== "unverified")
             problems.push("starter already passes the check")
+          const missing = await note(l.solution) // run again without the check for clean output
+          if (missing) problems.push(missing)
         }
       } else if (!l.summary) problems.push("missing summary")
-      const examples = [...l.body.matchAll(examplesRe)].map((m) => m[1])
+      const examples = examplesIn(l.body, c.lang)
       if (dir === "guide" && examples.length < 3)
         problems.push(`only ${examples.length} examples`)
       for (const code of examples) {
@@ -176,6 +255,8 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
           problems.push(`example fails: ${r.error.split("\n")[0]}\n      ${code.split("\n")[0]}`)
         if (!r.error && marksError(code))
           problems.push(`example marked "error!" didn't fail: ${code.split("\n")[0]}`)
+        const missing = await note(code, r)
+        if (missing) problems.push(missing)
       }
       // "What does this print?": the + answer must be the real output.
       for (const q of l.quiz ?? []) {
@@ -206,6 +287,7 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
       failed += problems.length ? 1 : 0
     }
   }
+  if (record && recorded) writeOutputs(c.id, fresh)
 }
 console.log(failed ? `\n${failed} file(s) failed` : "\nAll content passes")
 process.exit(failed ? 1 : 0)

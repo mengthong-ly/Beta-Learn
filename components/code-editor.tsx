@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import Editor, {
+  DiffEditor,
   loader,
   type BeforeMount,
   type OnMount,
@@ -158,6 +159,48 @@ export function CodeEditor({
         cursorSmoothCaretAnimation: "on",
         scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
         overviewRulerLanes: 0,
+      }}
+    />
+  )
+}
+
+/** Read-only, side by side: the learner's code (left) against the solution (right). */
+export function CodeDiff({
+  original,
+  modified,
+  language,
+}: {
+  original: string
+  modified: string
+  language: string
+}) {
+  const { resolvedTheme } = useTheme()
+  return (
+    <DiffEditor
+      original={original}
+      modified={modified}
+      language={language === "tsx" ? "typescript" : language}
+      // Two fixed, reused models: letting the component dispose them on close throws
+      // "TextModel got disposed before DiffEditorWidget model got reset".
+      originalModelPath="inmemory://compare/yours"
+      modifiedModelPath="inmemory://compare/solution"
+      keepCurrentOriginalModel
+      keepCurrentModifiedModel
+      beforeMount={defineThemes}
+      theme={resolvedTheme === "dark" ? "notion-dark" : "notion-light"}
+      loading={<div className="p-4 text-sm text-muted-foreground">Loading…</div>}
+      options={{
+        readOnly: true,
+        originalEditable: false,
+        useInlineViewWhenSpaceIsLimited: true,
+        fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace",
+        fontSize: 13,
+        lineHeight: 20,
+        fontLigatures: false,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        renderOverviewRuler: false,
+        automaticLayout: true,
       }}
     />
   )

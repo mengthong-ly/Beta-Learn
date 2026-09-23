@@ -1,10 +1,10 @@
-// Runs lesson code with the learner's own toolchains (c++, dart, flutter, php, tsc/node).
+// Runs lesson code with the learner's own toolchains (c++, dart, flutter).
 // Used by app/api/run (opt-in, see docs/adr/0001-local-runner.md) and scripts/check-content.ts.
 // Every lesson process runs in the OS sandbox (lib/sandbox.ts) with a scrubbed env.
 // No path aliases, erasable TypeScript only: Node runs this file directly.
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 
@@ -22,33 +22,23 @@ export type LocalResult = {
 }
 
 export const LOCAL_COURSES = [
-  "php",
-  "laravel",
-  "typescript",
   "cpp",
   "dart",
   "flutter",
-  "claude-code",
 ] as const
 export type LocalCourse = (typeof LOCAL_COURSES)[number]
 
 export const RUNTIMES = path.join(process.cwd(), "runtimes")
 const SUPPORT = path.join(RUNTIMES, "_support")
-const TSC = path.join(RUNTIMES, "typescript/node_modules/.bin/tsc")
-const LARAVEL = path.join(RUNTIMES, "laravel")
 const FLUTTER = path.join(RUNTIMES, "flutter")
 
 /** Check wrappers report on stderr with this prefix, then JSON: {"pass": bool, "message"?: string}. */
 export const CHECK_MARK = "@@thonglearn-check "
 const MAX_OUTPUT = 256_000
 const TIMEOUT: Record<LocalCourse, number> = {
-  php: 15_000,
-  laravel: 30_000,
-  typescript: 20_000,
   cpp: 30_000,
   dart: 30_000,
   flutter: 300_000,
-  "claude-code": 20_000,
 }
 
 type Proc = { code: number | null; stdout: string; stderr: string; timedOut: boolean }
@@ -169,125 +159,6 @@ async function withTemp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
-}
-
-const stripPhpTag = (s: string) => s.replace(/^\s*<\?php\s*/, "")
-
-// --- PHP and Laravel: the check runs in the same process, after the lesson file. ---
-function phpCheckWrapper(file: string, check: string) {
-  return `<?php
-function expect(bool $ok, string $message = 'Check failed'): void { if (!$ok) throw new \\Exception($message); }
-ob_start();
-require __DIR__ . '/${file}';
-$output = ob_get_clean();
-echo $output;
-try {
-${stripPhpTag(check)}
-  fwrite(STDERR, "${CHECK_MARK}" . json_encode(['pass' => true]) . "\\n");
-} catch (\\Throwable $e) {
-  fwrite(STDERR, "${CHECK_MARK}" . json_encode(['pass' => false, 'message' => $e->getMessage()]) . "\\n");
-}
-`
-}
-
-async function runPhp(course: "php" | "laravel", code: string, check: string | undefined, signal?: AbortSignal) {
-  const file = course === "php" ? "index.php" : "lesson.php"
-  return withTemp(async (dir) => {
-    await writeFile(path.join(dir, file), code)
-    const entry = check ? "check.php" : file
-    if (check) await writeFile(path.join(dir, entry), phpCheckWrapper(file, check))
-    const ini = ["-d", "display_errors=stderr", "-d", "log_errors=0", "-d", "zend.assertions=1", "-d", "assert.exception=1"]
-    const args =
-      course === "php"
-        ? [...ini, entry]
-        : [...ini, path.join(LARAVEL, "thonglearn-run.php"), path.join(dir, entry)]
-    const started = Date.now()
-    const r = await runProcess("php", args, {
-      cwd: dir,
-      timeout: TIMEOUT[course],
-      signal,
-      // Laravel writes compiled views and caches into its sandbox project.
-      sandbox: course === "php" ? [dir] : [dir, path.join(LARAVEL, "storage"), path.join(LARAVEL, "bootstrap/cache")],
-      env:
-        course === "laravel"
-          ? {
-              APP_ENV: "local",
-              DB_CONNECTION: "sqlite",
-              DB_DATABASE: ":memory:",
-              CACHE_STORE: "array",
-              SESSION_DRIVER: "array",
-              QUEUE_CONNECTION: "sync",
-              MAIL_MAILER: "log",
-              LOG_CHANNEL: "stderr",
-            }
-          : undefined,
-    })
-    return settle(r, started, dir, file, new RegExp(`${file.replace(".", "\\.")}(?: on line |:)(\\d+)`))
-  })
-}
-
-// --- TypeScript: tsc 7 type-checks and emits ESM, node runs it. ---
-const TS_CHECK = (check: string) => `const output: string[] = []
-const __log = console.log
-console.log = (...a: unknown[]) => {
-  output.push(a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" "))
-  __log(...a)
-}
-function expect(ok: boolean, message = "Check failed"): asserts ok {
-  if (!ok) throw new Error(message)
-}
-const lesson = await import("./main.js")
-try {
-${check}
-  console.error("${CHECK_MARK}" + JSON.stringify({ pass: true }))
-} catch (e) {
-  console.error("${CHECK_MARK}" + JSON.stringify({ pass: false, message: e instanceof Error ? e.message : String(e) }))
-}
-export {}
-`
-
-async function runTypeScript(code: string, check: string | undefined, signal?: AbortSignal) {
-  return withTemp(async (dir) => {
-    await writeFile(path.join(dir, "main.ts"), code)
-    await writeFile(path.join(dir, "package.json"), '{ "type": "module" }\n')
-    // Lessons can import the sandbox's packages (the Claude Code course uses @modelcontextprotocol/sdk and zod).
-    await symlink(path.join(RUNTIMES, "typescript/node_modules"), path.join(dir, "node_modules"), "dir")
-    const files = ["main.ts"]
-    if (check) {
-      await writeFile(path.join(dir, "check.ts"), TS_CHECK(check))
-      files.push("check.ts")
-    }
-    await writeFile(
-      path.join(dir, "tsconfig.json"),
-      JSON.stringify({
-        compilerOptions: {
-          strict: true,
-          target: "esnext",
-          module: "nodenext",
-          moduleResolution: "nodenext",
-          lib: ["esnext", "dom"],
-          rootDir: ".",
-          outDir: "out",
-          skipLibCheck: true,
-          noEmitOnError: true,
-        },
-        files,
-      })
-    )
-    const started = Date.now()
-    const lineRe = /main\.ts[(:](\d+)/
-    const tsc = await runProcess(TSC, ["-p", ".", "--pretty", "false"], { cwd: dir, timeout: TIMEOUT.typescript, signal, sandbox: [dir] })
-    if (tsc.code !== 0)
-      return settle({ ...tsc, stderr: tsc.stdout + tsc.stderr, stdout: "" }, started, dir, "main.ts", lineRe)
-    const r = await runProcess("node", [check ? "out/check.js" : "out/main.js"], {
-      cwd: dir,
-      timeout: TIMEOUT.typescript,
-      signal,
-      sandbox: [dir],
-    })
-    // Runtime errors point at the emitted .js; its lines match main.ts closely enough for a hint.
-    return settle(r, started, dir, "main.ts", /main\.[jt]s:(\d+)/)
-  })
 }
 
 // --- C++: the learner's own compiler (`c++`); the check includes the lesson as a header. ---
@@ -508,12 +379,6 @@ export function runLocal(
   opts: { signal?: AbortSignal; flutterMode?: "run" | "test" } = {}
 ): Promise<LocalResult> {
   switch (course) {
-    case "php":
-    case "laravel":
-      return runPhp(course, code, check, opts.signal)
-    case "typescript":
-    case "claude-code":
-      return runTypeScript(code, check, opts.signal)
     case "cpp":
       return runCpp(code, check, opts.signal)
     case "dart":
@@ -537,22 +402,15 @@ export async function toolStatus() {
     const r = await runProcess(cmd, args, { cwd: process.cwd(), timeout: 60_000 })
     return r.code === 0 ? (r.stdout + r.stderr).trim().split("\n")[0] : undefined
   }
-  const [php, cpp, dart, flutter, node, tsc] = await Promise.all([
-    version("php", ["-r", "echo PHP_VERSION;"]),
+  const [cpp, dart, flutter] = await Promise.all([
     version("c++", ["--version"]),
     version("dart", ["--version"]),
     version("flutter", ["--version"]),
-    version("node", ["--version"]),
-    existsSync(TSC) ? version(TSC, ["--version"]) : undefined,
   ])
   return {
-    php,
     cpp,
     dart,
     flutter,
-    node,
-    tsc,
-    laravel: existsSync(path.join(LARAVEL, "thonglearn-run.php")),
     flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")),
     support: existsSync(SUPPORT),
     /** Why runs can't be sandboxed here (lib/sandbox.ts), if they can't */

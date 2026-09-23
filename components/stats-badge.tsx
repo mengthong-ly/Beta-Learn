@@ -26,8 +26,12 @@ function Pop({ value }: { value: number }) {
 /** 🔥 day streak (any course) · XP (this course), in the sidebar header. */
 export function StatsBadge() {
   const { course, done } = useWorkspace()
+  // Reading counts too: on the website, some courses can only be read and written, not run.
   const times = useLiveQuery(
-    () => db.runs.orderBy("createdAt").keys() as unknown as Promise<number[]>,
+    async () => [
+      ...((await db.runs.orderBy("createdAt").keys()) as unknown as number[]),
+      ...(await db.reads.toArray()).map((r) => r.readAt),
+    ],
     [],
     []
   )
@@ -44,7 +48,7 @@ export function StatsBadge() {
       className="flex items-center gap-3 px-2 text-xs text-muted-foreground"
       aria-label={`${days} day streak, ${points} XP`}
     >
-      <span title="Days in a row with a run">
+      <span title="Days in a row with a run or a lesson read to the end">
         🔥 <Pop value={days} /> {days === 1 ? "day" : "days"}
       </span>
       <span title="10 per lesson, 2 per quiz point, 50 per section quiz, 200 for the final">

@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     // Local runner sandboxes (npm run setup:runtimes): generated apps, vendor code, builds.
     "runtimes/**",
     "lib/generated/**",
+    // TypeScript and type files for the browser runtime (scripts/build-ts-assets.mjs).
+    "public/generated/**",
   ]),
 ]);
 
