@@ -67,6 +67,13 @@ ${check}
 }
 `
 
+const toLines = (text, kind) =>
+  text
+    .replace(/\n$/, "")
+    .split("\n")
+    .filter((t, i, a) => a.length > 1 || t)
+    .map((t) => ({ kind, text: t }))
+
 /** Compiler diagnostics name the file the learner sees, never the wrapper. */
 const asMain = (s) => s.replaceAll(LESSON, MAIN)
 
@@ -114,13 +121,16 @@ export async function compileAndRun(clang, wasi, { code, check }, onRunning) {
   }
 
   onRunning?.() // the timeout that catches an infinite loop starts here, not during the compile
-  const lines = []
-  const out = wasi.ConsoleStdout.lineBuffered((t) => lines.push({ kind: "out", text: t }))
-  const err = wasi.ConsoleStdout.lineBuffered((t) => lines.push({ kind: "err", text: t }))
+  // Collect the raw bytes rather than whole lines: a program that ends without a newline
+  // ("std::cout << \"hi\";") still wrote a line, and lineBuffered() would swallow it.
+  const text = { out: "", err: "" }
+  const decoders = { out: new TextDecoder(), err: new TextDecoder() }
+  const sink = (kind) =>
+    new wasi.ConsoleStdout((bytes) => (text[kind] += decoders[kind].decode(bytes, { stream: true })))
   const instance = new wasi.WASI(
     ["lesson"],
     [],
-    [new wasi.OpenFile(new wasi.File([])), out, err, new wasi.PreopenDirectory("/", new Map())]
+    [new wasi.OpenFile(new wasi.File([])), sink("out"), sink("err"), new wasi.PreopenDirectory("/", new Map())]
   )
   const { instance: program } = await WebAssembly.instantiate(built.prog, {
     wasi_snapshot_preview1: instance.wasiImport,
@@ -135,22 +145,26 @@ export async function compileAndRun(clang, wasi, { code, check }, onRunning) {
   }
 
   let verdict
-  const kept = lines.filter((l) => {
-    if (l.kind !== "err" || !l.text.startsWith(CHECK_MARK)) return true
-    verdict = JSON.parse(l.text.slice(CHECK_MARK.length))
-    return false
-  })
+  const stderr = text.err
+    .split("\n")
+    .filter((l) => {
+      if (!l.startsWith(CHECK_MARK)) return true
+      verdict = JSON.parse(l.slice(CHECK_MARK.length))
+      return false
+    })
+    .join("\n")
+  const lines = [...toLines(text.out, "out"), ...toLines(stderr, "err")]
   if (crashed !== undefined)
     return {
-      lines: kept,
+      lines,
       error: /unreachable/.test(crashed)
         ? "The program stopped: something failed at runtime (an out-of-range .at(), a failed assert, or undefined behaviour)."
         : crashed,
     }
   if (exit !== 0 && !verdict)
     return {
-      lines: kept.filter((l) => l.kind === "out"),
-      error: kept.find((l) => l.kind === "err")?.text ?? `Exited with code ${exit}`,
+      lines: lines.filter((l) => l.kind === "out"),
+      error: stderr.trim() || text.out.trim() || `Exited with code ${exit}`,
     }
-  return { lines: kept, check: verdict }
+  return { lines, check: verdict }
 }
