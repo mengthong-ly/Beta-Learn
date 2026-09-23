@@ -73,7 +73,7 @@ import { db } from "@/lib/db"
 import { pushRow } from "@/lib/sync"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
 import { playground, type Lesson } from "@/lib/lesson-parser"
-import { reset, run, show, stop, useRunner, warmPython } from "@/lib/runner"
+import { reset, run, show, stop, useCanRun, useRunner, warmPython } from "@/lib/runner"
 
 // Monaco touches `window`; render it only in the browser.
 const CodeEditor = dynamic(
@@ -157,7 +157,8 @@ export function Workspace({
 }) {
   const router = useRouter()
   const c = findCourse(course)
-  const preview = hasPreview(c)
+  const canRun = useCanRun(c)
+  const preview = hasPreview(c) && canRun
   const [, , route, param] = usePathname().split("/")
   const runId = route === "run" ? Number(param) : undefined
   const savedRun = useLiveQuery(
@@ -252,6 +253,7 @@ export function Workspace({
   }
 
   const execute = async (withCheck = false) => {
+    if (!canRun) return
     setOpen(panes.current, rightPane.current, true)
     setTab(preview && !(withCheck && c.id === "flutter") ? "preview" : "output")
     setMobileTab("output")
@@ -341,7 +343,7 @@ export function Workspace({
     edit(c)
     setOpen(panes.current, editorPane.current, true)
     setMobileTab("code")
-    toast("Loaded into the editor", { description: "Press ⌘↵ to run it." })
+    toast("Loaded into the editor", canRun ? { description: "Press ⌘↵ to run it." } : undefined)
   }
 
   const editor = (
@@ -376,7 +378,7 @@ export function Workspace({
             </Button>
           </Tip>
         )}
-        {doc.check && (
+        {canRun && doc.check && (
           <Tip label="Run and check the challenge">
             <Button
               size="sm"
@@ -389,7 +391,7 @@ export function Workspace({
             </Button>
           </Tip>
         )}
-        {running ? (
+        {!canRun ? null : running ? (
           <Tip label="Stop" keys={["⌘", "."]}>
             <Button size="sm" variant="secondary" onClick={stop}>
               <SquareIcon data-icon="inline-start" />
@@ -451,7 +453,7 @@ export function Workspace({
         </TabsList>
       </div>
       <TabsContent value="output" className="min-h-0">
-        <OutputPane state={state} />
+        <OutputPane state={state} writeOnly={canRun ? undefined : c.name} />
       </TabsContent>
       {preview && (
         // Always mounted: a React run renders here even while the Output tab is showing.

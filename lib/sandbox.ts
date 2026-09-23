@@ -22,13 +22,8 @@ export function cleanEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
   return { ...env, GIT_CONFIG_GLOBAL: "/dev/null", ...extra } as unknown as NodeJS.ProcessEnv
 }
 
-/** THONGLEARN_UNSANDBOXED=1 turns the sandbox off, but never while a hosted site may call us. */
-export function sandboxDisabled() {
-  if (process.env.THONGLEARN_UNSANDBOXED !== "1") return false
-  if (process.env.RUNNER_ORIGINS)
-    throw new Error("THONGLEARN_UNSANDBOXED=1 can't be combined with RUNNER_ORIGINS: a hosted site would run code unsandboxed.")
-  return true
-}
+/** THONGLEARN_UNSANDBOXED=1 turns the sandbox off, for local debugging. */
+export const sandboxDisabled = () => process.env.THONGLEARN_UNSANDBOXED === "1"
 
 const which = (cmd: string) =>
   (process.env.PATH ?? "")

@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
   CheckIcon,
   CircleAlertIcon,
+  LaptopIcon,
   LoaderCircleIcon,
   SquareIcon,
   TerminalIcon,
@@ -10,9 +11,11 @@ import {
   XIcon,
 } from "lucide-react"
 
+import { RunLocallyDialog } from "@/components/run-locally"
 import { Badge } from "@/components/ui/badge"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -31,7 +34,8 @@ const PHASE_LABEL: Record<Phase, string> = {
 }
 const ANIMATED_LINES = 60
 
-export function OutputPane({ state }: { state: RunState }) {
+/** writeOnly: the course name, when it can't run here (a hosted copy without the learner's runner). */
+export function OutputPane({ state, writeOnly }: { state: RunState; writeOnly?: string }) {
   const reduce = useReducedMotion()
   const { status, phase, lines, runKey } = state
   const running = status === "running"
@@ -59,6 +63,26 @@ export function OutputPane({ state }: { state: RunState }) {
     if (running)
       scroller.current?.scrollTo({ top: scroller.current.scrollHeight })
   }, [lines.length, running])
+
+  if (status === "idle" && writeOnly) {
+    return (
+      <Empty className="h-full">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <LaptopIcon />
+          </EmptyMedia>
+          <EmptyTitle>{writeOnly} runs on your computer</EmptyTitle>
+          <EmptyDescription>
+            The website can&apos;t run {writeOnly}. Write your code here and compare it with the
+            solution (the lightbulb).
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <RunLocallyDialog course={writeOnly} />
+        </EmptyContent>
+      </Empty>
+    )
+  }
 
   if (status === "idle") {
     return (

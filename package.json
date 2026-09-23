@@ -5,7 +5,6 @@
   "private": true,
   "scripts": {
     "dev": "LOCAL_RUNNER=1 next dev -H 127.0.0.1",
-    "dev:hosted": "RUNNER_ORIGINS=https://beta-learn.vercel.app LOCAL_RUNNER=1 next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

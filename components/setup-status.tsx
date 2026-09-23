@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react"
 import {
   CheckIcon,
-  CopyIcon,
   RefreshCwIcon,
   Trash2Icon,
   XIcon,
@@ -11,6 +10,7 @@ import {
 import { toast } from "sonner"
 
 import { CourseMark } from "@/components/course-switcher"
+import { CopyCommand, RunLocallySteps } from "@/components/run-locally"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { findCourse } from "@/lib/courses"
-import { runnerCommand, runnerUrl } from "@/lib/runner"
+import { useCanRun } from "@/lib/runner"
 import type { Cache, CacheId, Requirement } from "@/lib/runner-status"
 
 type Snapshot = { requirements: Requirement[]; caches: Cache[]; error?: string }
@@ -35,10 +35,10 @@ const HEADERS = { "content-type": "application/json", "x-thonglearn-run": "1" }
 
 async function fetchSnapshot(init?: RequestInit): Promise<Snapshot | "off"> {
   try {
-    const res = await fetch(runnerUrl("/api/runtime"), { headers: HEADERS, ...init })
+    const res = await fetch("/api/runtime", { headers: HEADERS, ...init })
     return res.status === 403 ? "off" : await res.json()
   } catch {
-    return "off" // not running, or (on a hosted copy) the browser blocked the call
+    return "off"
   }
 }
 
@@ -58,6 +58,8 @@ const SCOPES = [
 ] as const
 
 export function SetupStatus() {
+  // The website never calls your machine, so only a local copy checks its toolchains.
+  const local = useCanRun({ runtime: "local" })
   const [data, setData] = useState<Snapshot | null>(null)
   const [off, setOff] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -70,8 +72,8 @@ export function SetupStatus() {
   }, [])
 
   useEffect(() => {
-    fetchSnapshot().then(apply)
-  }, [apply])
+    if (local) fetchSnapshot().then(apply)
+  }, [apply, local])
 
   const load = async (init?: RequestInit) => {
     setLoading(true)
@@ -88,12 +90,19 @@ export function SetupStatus() {
     else if (typeof r === "object") toast.success(`Cleaned ${c.label}`)
   }
 
+  if (!local)
+    return (
+      <section className="mt-8 rounded-xl border p-5">
+        <RunLocallySteps />
+      </section>
+    )
+
   if (off)
     return (
       <p className="mt-8 rounded-xl border p-5 text-sm text-muted-foreground">
-        The local runner is off. Start ThongLearn on your own computer with{" "}
-        <code className="font-mono text-foreground">{runnerCommand()}</code> to check
-        your toolchains.
+        The local runner is off. Start ThongLearn with{" "}
+        <code className="font-mono text-foreground">npm run dev</code> to check your
+        toolchains.
       </p>
     )
 
@@ -141,7 +150,7 @@ export function SetupStatus() {
                         {i.found ?? "not found"}
                         {!i.sandbox && ` · needs ${i.need}`}
                       </span>
-                      {!i.ok && i.sandbox && <CopyCommand />}
+                      {!i.ok && i.sandbox && <CopyCommand command={SETUP} />}
                     </li>
                   ))}
                 </ul>
@@ -206,21 +215,5 @@ export function SetupStatus() {
         </section>
       ))}
     </>
-  )
-}
-
-function CopyCommand() {
-  return (
-    <Button
-      variant="ghost"
-      size="xs"
-      className="font-mono"
-      onClick={() =>
-        navigator.clipboard.writeText(SETUP).then(() => toast("Copied", { description: SETUP }))
-      }
-    >
-      <CopyIcon />
-      {SETUP}
-    </Button>
   )
 }
