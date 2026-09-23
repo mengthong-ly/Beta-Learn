@@ -270,7 +270,10 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
             : c.id === "cpp"
               ? `    std::string all;
     for (const std::string &line : output) { all += line; all += "\\n"; }
-    while (!all.empty() && all.back() == '\\n') all.pop_back();
+    const std::string space = " \\t\\r\\n";
+    all.erase(0, all.find_first_not_of(space));
+    const std::size_t last = all.find_last_not_of(space);
+    all.erase(last == std::string::npos ? 0 : last + 1);
     expect(all == ${JSON.stringify(want)}, "printed " + all);`
               : undefined
         if (!assertOutput) {

@@ -208,28 +208,29 @@ async function runCpp(code: string, check: string | undefined, signal?: AbortSig
   return withTemp(async (dir) => {
     const started = Date.now()
     const entry = check ? "check.cpp" : "main.cpp"
+    await writeFile(path.join(dir, "main.cpp"), code)
     if (check) {
       // Same lines as main.cpp, so compiler errors still point at the learner's line.
       await writeFile(path.join(dir, "lesson.hpp"), code.replace(/\bint(\s+)main(\s*)\(/, "int$1lesson_main$2("))
       await writeFile(path.join(dir, "check.cpp"), CPP_CHECK(check))
-    } else await writeFile(path.join(dir, "main.cpp"), code)
-    const compile = await runProcess("c++", ["-std=c++23", "-Wall", "-o", "lesson", entry], {
-      cwd: dir,
-      timeout: TIMEOUT.cpp,
-      signal,
-      sandbox: [dir],
-    })
+    }
+    const cxx = (args: string[]) =>
+      runProcess("c++", ["-std=c++23", "-Wall", ...args], { cwd: dir, timeout: TIMEOUT.cpp, signal })
+    const compile = await cxx(["-o", "lesson", entry])
     const asMain = (s: string) => s.replaceAll("lesson.hpp", "main.cpp")
     const lineRe = /main\.cpp:(\d+)/
-    if (compile.code !== 0)
-      return settle(
-        { ...compile, stderr: asMain(compile.stdout + compile.stderr), stdout: "" },
-        started,
-        dir,
-        "main.cpp",
-        lineRe
-      )
-    const r = await runProcess(path.join(dir, "lesson"), [], { cwd: dir, timeout: TIMEOUT.cpp, signal, sandbox: [dir] })
+    const fail = (p: Proc) =>
+      settle({ ...p, stderr: asMain(p.stdout + p.stderr), stdout: "" }, started, dir, "main.cpp", lineRe)
+    if (compile.code !== 0) {
+      // The check wrapper's own cascading errors aren't the learner's business: when the
+      // lesson alone doesn't compile, report that instead.
+      if (check) {
+        const alone = await cxx(["-fsyntax-only", "main.cpp"])
+        if (alone.code !== 0) return fail(alone)
+      }
+      return fail(compile)
+    }
+    const r = await runProcess(path.join(dir, "lesson"), [], { cwd: dir, timeout: TIMEOUT.cpp, signal })
     return settle({ ...r, stderr: asMain(r.stderr) }, started, dir, "main.cpp", lineRe)
   })
 }
