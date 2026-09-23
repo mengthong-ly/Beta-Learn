@@ -64,6 +64,17 @@ export const courses = [
     hello: 'export default function App() {\n  return <h1>Hello, React!</h1>\n}\n',
   },
   {
+    id: "cpp",
+    name: "C++",
+    mark: "Cp",
+    tagline: "Types, objects and the standard library, compiled by your own compiler.",
+    runtime: "local",
+    lang: "cpp",
+    file: "main.cpp",
+    comment: "//",
+    hello: '#include <iostream>\n\nint main() {\n  std::cout << "Hello, C++!" << std::endl;\n}\n',
+  },
+  {
     id: "dart",
     name: "Dart",
     mark: "Da",

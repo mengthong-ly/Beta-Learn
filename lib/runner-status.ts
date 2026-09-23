@@ -63,6 +63,8 @@ export async function requirements(): Promise<Requirement[]> {
         sandbox("MCP SDK in the TypeScript sandbox", has("typescript/node_modules/@modelcontextprotocol/sdk")),
       ],
     ],
+    // Any compiler with C++23 support: Apple clang 15+, clang 16+ or g++ 13+.
+    ["cpp", [{ name: "C++ compiler (c++)", found: version(t.cpp), need: "clang 15+ / g++ 13+", ok: !!t.cpp }]],
     ["dart", [tool("Dart", t.dart, "≥ 3.13", "3.13")]],
     [
       "flutter",

@@ -12,7 +12,7 @@ ThongLearn ran all code in the browser (Pyodide). Research (`.design/thonglearn/
 
 ## Decision
 
-A **local runner** runs PHP, Laravel, TypeScript, Dart and Flutter with the learner's real toolchains, through `POST /api/run` (`lib/local-runner.ts`). React stays in the browser: a sandboxed iframe with Sucrase, plus React from esm.sh (`public/react-preview.html`). Python stays in Pyodide.
+A **local runner** runs PHP, Laravel, TypeScript, C++, Dart and Flutter with the learner's real toolchains, through `POST /api/run` (`lib/local-runner.ts`). React stays in the browser: a sandboxed iframe with Sucrase, plus React from esm.sh (`public/react-preview.html`). Python stays in Pyodide.
 
 The runner executes arbitrary code on the machine, so every request must pass all of these checks (`app/api/run/guard.ts`):
 

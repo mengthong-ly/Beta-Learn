@@ -3,7 +3,7 @@
 //   runtimes/typescript  TypeScript 7 (tsc), MCP SDK   npm (the Claude Code course shares it)
 //   runtimes/laravel     a Laravel 13 app              composer
 //   runtimes/flutter     a Flutter web app             flutter
-// Dart and PHP need nothing but the dart and php commands on your PATH.
+// C++, Dart and PHP need nothing but the c++, dart and php commands on your PATH.
 import { spawnSync } from "node:child_process"
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"

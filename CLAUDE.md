@@ -2,7 +2,7 @@
 
 # ThongLearn
 
-Programming course app (Python, PHP, Laravel 13, TypeScript, React, Dart, Flutter). Python runs in the browser via Pyodide and React in a sandboxed iframe. The other courses run on the learner's own toolchains through the opt-in local runner (`lib/local-runner.ts`, `/api/run`, see `docs/adr/0001-local-runner.md`). There is no other server-side code execution.
+Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, Flutter). Python runs in the browser via Pyodide and React in a sandboxed iframe. The other courses run on the learner's own toolchains through the opt-in local runner (`lib/local-runner.ts`, `/api/run`, see `docs/adr/0001-local-runner.md`). There is no other server-side code execution.
 
 ## Tech stack
 
