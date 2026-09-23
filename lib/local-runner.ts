@@ -22,7 +22,6 @@ export type LocalResult = {
 }
 
 export const LOCAL_COURSES = [
-  "php",
   "laravel",
   "cpp",
   "dart",
@@ -39,7 +38,6 @@ const FLUTTER = path.join(RUNTIMES, "flutter")
 export const CHECK_MARK = "@@thonglearn-check "
 const MAX_OUTPUT = 256_000
 const TIMEOUT: Record<LocalCourse, number> = {
-  php: 15_000,
   laravel: 30_000,
   cpp: 30_000,
   dart: 30_000,
@@ -199,7 +197,7 @@ async function runPhp(course: "php" | "laravel", code: string, check: string | u
     const started = Date.now()
     const r = await runProcess("php", args, {
       cwd: dir,
-      timeout: TIMEOUT[course],
+      timeout: course === "php" ? 15_000 : TIMEOUT[course],
       signal,
       // Laravel writes compiled views and caches into its sandbox project.
       sandbox: course === "php" ? [dir] : [dir, path.join(LARAVEL, "storage"), path.join(LARAVEL, "bootstrap/cache")],
@@ -439,7 +437,6 @@ export function runLocal(
   opts: { signal?: AbortSignal; flutterMode?: "run" | "test" } = {}
 ): Promise<LocalResult> {
   switch (course) {
-    case "php":
     case "laravel":
       return runPhp(course, code, check, opts.signal)
     case "cpp":

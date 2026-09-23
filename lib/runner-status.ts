@@ -42,8 +42,6 @@ export async function requirements(): Promise<Requirement[]> {
     sandbox: true,
   })
   const rows: [LocalCourse, Item[]][] = [
-    // The PHP course teaches 8.5 features (the pipe operator).
-    ["php", [tool("PHP", t.php, "≥ 8.5", "8.5")]],
     [
       "laravel",
       [

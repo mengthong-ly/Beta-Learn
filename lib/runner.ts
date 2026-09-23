@@ -71,6 +71,7 @@ function set(patch: Partial<RunState>, now = true) {
 const WORKERS = {
   pyodide: { url: "/python.worker.js", booting: "Loading Python (first run downloads ~10 MB)" },
   ts: { url: "/ts.worker.js", booting: "Loading TypeScript (first run downloads ~3 MB)" },
+  php: { url: "/php.worker.js", booting: "Loading PHP (first run downloads ~6 MB)" },
 } as const
 type WorkerRuntime = keyof typeof WORKERS
 const isWorker = (runtime: string): runtime is WorkerRuntime => runtime in WORKERS

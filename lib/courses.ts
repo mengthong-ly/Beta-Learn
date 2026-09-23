@@ -3,6 +3,7 @@
  *
  * runtime: where code runs.
  *   "pyodide" Python in a browser worker (public/python.worker.js)
+ *   "php"     PHP 8.5 (php-wasm) in a browser worker (public/php.worker.js) (ADR-0002)
  *   "ts"      TypeScript 6 in a browser worker (public/ts.worker.js), run in a sandboxed iframe (ADR-0002)
  *   "local"   the learner's own toolchain through the opt-in /api/run route (ADR-0001)
  *   "react"   a sandboxed browser iframe (public/react-preview.html)
@@ -25,7 +26,7 @@ export const courses = [
     name: "PHP",
     mark: "Ph",
     tagline: "The language behind most of the web, from syntax to fibers.",
-    runtime: "local",
+    runtime: "php",
     lang: "php",
     file: "index.php",
     comment: "//",
