@@ -26,18 +26,19 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { findCourse } from "@/lib/courses"
+import { runnerCommand, runnerUrl } from "@/lib/runner"
 import type { Cache, CacheId, Requirement } from "@/lib/runner-status"
 
 type Snapshot = { requirements: Requirement[]; caches: Cache[]; error?: string }
 const SETUP = "npm run setup:runtimes"
 const HEADERS = { "content-type": "application/json", "x-thonglearn-run": "1" }
 
-async function fetchSnapshot(init?: RequestInit): Promise<Snapshot | "off" | Error> {
+async function fetchSnapshot(init?: RequestInit): Promise<Snapshot | "off"> {
   try {
-    const res = await fetch("/api/runtime", { headers: HEADERS, ...init })
+    const res = await fetch(runnerUrl("/api/runtime"), { headers: HEADERS, ...init })
     return res.status === 403 ? "off" : await res.json()
-  } catch (e) {
-    return e as Error
+  } catch {
+    return "off" // not running, or (on a hosted copy) the browser blocked the call
   }
 }
 
@@ -62,10 +63,9 @@ export function SetupStatus() {
   const [loading, setLoading] = useState(true)
   const [cleaning, setCleaning] = useState<CacheId | null>(null)
 
-  const apply = useCallback((r: Snapshot | "off" | Error) => {
+  const apply = useCallback((r: Snapshot | "off") => {
     setLoading(false)
     if (r === "off") return setOff(true)
-    if (r instanceof Error) return toast.error(`Couldn't reach the local runner: ${r.message}`)
     setData(r)
   }, [])
 
@@ -85,14 +85,14 @@ export function SetupStatus() {
     const r = await load({ method: "POST", body: JSON.stringify({ id: c.id }) })
     setCleaning(null)
     if (typeof r === "object" && "error" in r && r.error) toast.error(`Couldn't clean ${c.label}`, { description: r.error })
-    else if (typeof r === "object" && !(r instanceof Error)) toast.success(`Cleaned ${c.label}`)
+    else if (typeof r === "object") toast.success(`Cleaned ${c.label}`)
   }
 
   if (off)
     return (
       <p className="mt-8 rounded-xl border p-5 text-sm text-muted-foreground">
         The local runner is off. Start ThongLearn on your own computer with{" "}
-        <code className="font-mono text-foreground">npm run dev</code> to check
+        <code className="font-mono text-foreground">{runnerCommand()}</code> to check
         your toolchains.
       </p>
     )

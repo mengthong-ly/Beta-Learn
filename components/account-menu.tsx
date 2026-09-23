@@ -11,74 +11,109 @@ import {
 } from "lucide-react"
 
 import { AppearanceMenu } from "@/components/appearance-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth-client"
 
-/** Sidebar footer: the account row, which expands upward into setup, appearance and sign in/out. */
+/** Sidebar footer: the account row, which opens a menu with setup, appearance and sign in/out. */
 export function AccountMenu() {
   const { data, isPending } = authClient.useSession()
   const pathname = usePathname()
+  const { isMobile } = useSidebar()
+  const name = data ? data.user.name || data.user.email : "Guest"
+  // The same avatar + name block heads both the row and the open menu.
+  const who = (
+    <>
+      <Avatar className="rounded-lg after:rounded-lg">
+        {data?.user.image && (
+          <AvatarImage
+            src={data.user.image}
+            alt={name}
+            className="rounded-lg"
+          />
+        )}
+        <AvatarFallback className="rounded-lg">
+          {data ? name[0].toUpperCase() : <UserIcon className="size-4" />}
+        </AvatarFallback>
+      </Avatar>
+      <span className="grid flex-1 text-left text-sm leading-tight">
+        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {data ? data.user.email : "Not signed in"}
+        </span>
+      </span>
+    </>
+  )
 
   return (
-    <Collapsible className="group/account">
-      <SidebarMenu>
-        <CollapsibleContent className="flex flex-col gap-1">
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/setup">
-                <MonitorCogIcon />
-                <span>Setup</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <AppearanceMenu />
-          {!isPending && (
-            <SidebarMenuItem>
-              {data ? (
-                <SidebarMenuButton onClick={() => authClient.signOut()}>
-                  <LogOutIcon />
-                  <span>Sign out</span>
-                </SidebarMenuButton>
-              ) : (
-                <SidebarMenuButton asChild>
-                  <Link href={`/login?next=${encodeURIComponent(pathname)}`}>
-                    <LogInIcon />
-                    <span>Sign in to save progress</span>
-                  </Link>
-                </SidebarMenuButton>
-              )}
-            </SidebarMenuItem>
-          )}
-        </CollapsibleContent>
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              title={data ? "Progress syncs to this account" : undefined}
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <UserIcon />
-              <span className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-medium">
-                  {data ? data.user.name || data.user.email : "Guest"}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {data ? data.user.email : "Settings and sign in"}
-                </span>
-              </span>
-              <ChevronsUpDownIcon className="ml-auto" />
+              {who}
+              <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
-          </CollapsibleTrigger>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </Collapsible>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            sideOffset={4}
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-64 rounded-lg"
+          >
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-foreground">
+                {who}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href="/setup">
+                  <MonitorCogIcon />
+                  Setup
+                </Link>
+              </DropdownMenuItem>
+              <AppearanceMenu />
+            </DropdownMenuGroup>
+            {!isPending && (
+              <>
+                <DropdownMenuSeparator />
+                {data ? (
+                  <DropdownMenuItem onSelect={() => authClient.signOut()}>
+                    <LogOutIcon />
+                    Log out
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/login?next=${encodeURIComponent(pathname)}`}>
+                      <LogInIcon />
+                      Sign in to save progress
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }

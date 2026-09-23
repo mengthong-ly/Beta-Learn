@@ -5,16 +5,15 @@ import { useTheme } from "next-themes"
 import { CheckIcon, PaletteIcon } from "lucide-react"
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
-import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import {
   MASCOTS,
   setMascot,
@@ -58,74 +57,65 @@ function useFont() {
   )
 }
 
-/** A SidebarMenuItem: render it inside a SidebarMenu. */
+/** A submenu: render it inside a DropdownMenuContent. */
 export function AppearanceMenu() {
   const { theme, setTheme } = useTheme()
   const font = useFont()
   const mascot = useMascot()
 
   return (
-    <SidebarMenuItem>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuButton>
-            <PaletteIcon />
-            <span>Appearance</span>
-            <span className="ml-auto truncate text-xs text-muted-foreground">
-              {FONTS.find((f) => f.id === font)?.label}
-            </span>
-          </SidebarMenuButton>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" className="w-60">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Font</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={font}
-              onValueChange={(v) => setFont(v as FontId)}
-            >
-              {FONTS.map((f) => (
-                <DropdownMenuRadioItem
-                  key={f.id}
-                  value={f.id}
-                  style={{ fontFamily: f.family }}
-                >
-                  {f.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Theme</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="system">
-                System
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <PaletteIcon />
+        Appearance
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Font</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={font}
+            onValueChange={(v) => setFont(v as FontId)}
+          >
+            {FONTS.map((f) => (
+              <DropdownMenuRadioItem
+                key={f.id}
+                value={f.id}
+                style={{ fontFamily: f.family }}
+              >
+                {f.label}
               </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Mascot</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={mascot}
-              onValueChange={(v) => setMascot(v as MascotId)}
-            >
-              {MASCOTS.map((m) => (
-                <DropdownMenuRadioItem key={m.id} value={m.id}>
-                  {m.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <p className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground">
-            <CheckIcon className="size-3" />
-            Code always uses JetBrains Mono
-          </p>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </SidebarMenuItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+            <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Mascot</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={mascot}
+            onValueChange={(v) => setMascot(v as MascotId)}
+          >
+            {MASCOTS.map((m) => (
+              <DropdownMenuRadioItem key={m.id} value={m.id}>
+                {m.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <p className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground">
+          <CheckIcon className="size-3" />
+          Code always uses JetBrains Mono
+        </p>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   )
 }
