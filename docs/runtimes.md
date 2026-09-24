@@ -1,6 +1,6 @@
 # Runtimes
 
-Five ways a learner's code runs. `runtime` in `lib/courses.ts` picks one.
+Six ways a learner's code runs. `runtime` in `lib/courses.ts` picks one.
 
 | `runtime` | Courses | Where it runs | Entry point |
 | --- | --- | --- | --- |
@@ -8,7 +8,8 @@ Five ways a learner's code runs. `runtime` in `lib/courses.ts` picks one.
 | `react` | React | a sandboxed iframe | `public/react-preview.html` |
 | `ts` | TypeScript, Claude Code | a browser worker, then a sandboxed iframe | `public/ts.worker.js`, `public/ts-run.html` |
 | `php` | PHP, Laravel | a browser worker (php-wasm) | `public/php.worker.js` |
-| `local` | C++, Dart, Flutter | the learner's machine, in a local copy only | `lib/local-runner.ts` via `POST /api/run` |
+| `cpp` | C++ | a browser worker (clang in wasm, then WASI) | `public/cpp.worker.js` |
+| `local` | Dart, Flutter | the learner's machine, in a local copy only | `lib/local-runner.ts` via `POST /api/run` |
 
 Nothing runs on the deployed host, and **the website never calls the learner's machine**
 ([ADR-0002](adr/0002-browser-runtimes.md)). On the website, `local` courses are write-only
@@ -97,7 +98,35 @@ points that import at the CDN file.
 - The snapshot is built by `node --no-warnings scripts/build-laravel-snapshot.ts` (needs `php`
   and `composer`) and committed, because Vercel has no PHP. Re-run it after upgrading Laravel.
 
-## Local runner (C++, Dart, Flutter)
+## C++ (clang in WebAssembly)
+
+`public/cpp.worker.js` loads [`@yowasp/clang`](https://github.com/YoWASP/clang) (LLVM 22, ISC) and
+[`@bjorn3/browser_wasi_shim`](https://github.com/bjorn3/browser_wasi_shim) (MIT) from jsDelivr.
+Each run compiles the lesson to a `wasm32-wasi` program and runs it under WASI, which is where its
+`std::cout` and `std::cerr` come from. Compiling and running live in `public/cpp-run.js`, which
+`scripts/check-content.ts` imports too, so the website and the check judge lessons identically.
+
+- The toolchain is **~23 MB brotli** (a 75 MB `llvm.core.wasm` and a 30 MB sysroot tar), downloaded
+  on the **first compile**, not at boot, and cached by the browser after that. That run reports the
+  `installing` phase ("Downloading clang"); later runs take about 1.5 s.
+- **There are no exceptions.** The sysroot's libc++ is built without them (no `__cxa_throw`), so
+  everything compiles `-fno-exceptions`: a failed `at()` traps instead of throwing, and a lesson
+  can't `try`/`catch`. Two lessons say so where it matters. This is the one thing a desktop
+  compiler does differently, and the reason the course stayed local until now
+  ([ADR-0003](adr/0003-cpp-in-the-browser.md)).
+- The check is compiled **with** the lesson: `lesson.hpp` is the learner's file with `main` renamed
+  `lesson_main` (same lines, so diagnostics keep their numbers), and `check.cpp` calls it with
+  `std::cout` redirected into a `std::ostringstream`. Checks get `output` and `expect()`, and can
+  call the lesson's own functions and types. `expect()` prints the verdict and exits rather than
+  throwing.
+- Renaming `main` costs it main's implicit `return 0`, which would turn "falls off the end" into a
+  trap, so **check builds only** add `-fno-strict-return`.
+- When a check build fails, the lesson is recompiled alone with `-fsyntax-only` and *that* error is
+  reported, so the learner never sees the wrapper's cascading errors.
+- `printf` goes straight to WASI's stdout, so it shows in the output but is invisible to `output`
+  in a check. Lessons use `std::cout`.
+
+## Local runner (Dart, Flutter)
 
 **Read [ADR-0001](adr/0001-local-runner.md) before touching anything here.** It is the security
 model, not background reading. It only runs in a local copy: the website never calls it.
@@ -149,7 +178,6 @@ deliberate. `THONGLEARN_UNSANDBOXED=1` turns it off for local debugging.
 
 | Course | How | Timeout | Check helpers |
 | --- | --- | --- | --- |
-| `cpp` | `c++ -std=c++23 -Wall`, then the binary | 30 s | `output`, `expect()` |
 | `dart` | `dart --enable-asserts` on the file directly | 30 s | `output`, `expect()`, `lesson.*` |
 | `flutter` | `flutter test` when there's a check, `flutter build web` otherwise | 300 s | a `testWidgets` body |
 
@@ -159,9 +187,8 @@ Two recurring patterns:
   includes the lesson, captures its output, runs the check, and prints
   `@@thonglearn-check {"pass":…}` on stderr. `settle()` pulls that line out of the output and
   turns it into the verdict.
-- **Error lines are mapped back to the learner's file.** C++ writes the lesson as `lesson.hpp`
-  with `main` renamed but the same line numbers, then rewrites `lesson.hpp` → `main.cpp` in the
-  compiler output.
+- **Error lines are mapped back to the learner's file**, out of whatever file the toolchain
+  actually compiled.
 
 Flutter is the awkward one. It uses a single shared project (`runtimes/flutter`), so runs are
 serialized through `serially()`. The SDK's `dart` and `flutter` wrappers write stamps into the
@@ -176,7 +203,7 @@ Generated by `npm run setup:runtimes`, gitignored, safe to re-run (existing sand
 
 - `runtimes/flutter` — `flutter create --platforms web`
 
-C++ and Dart need nothing beyond `c++` and `dart` on your PATH. `runtimes/laravel` is only the
+Dart needs nothing beyond `dart` on your PATH. `runtimes/laravel` is only the
 source of the Laravel snapshot: `scripts/build-laravel-snapshot.ts` creates it when missing.
 
 Delete the whole folder and re-run the script if it gets into a bad state.
@@ -194,12 +221,12 @@ Delete the whole folder and re-run the script if it gets into a bad state.
 **"This course runs on your computer, and the local runner is off."** The dev server was started
 without `LOCAL_RUNNER=1` (use `npm run dev`, not `next dev`).
 
-**No Run or Check button for C++, Dart or Flutter on the website.** By design: those courses are
+**No Run or Check button for Dart or Flutter on the website.** By design: those courses are
 write-only there ([ADR-0002](adr/0002-browser-runtimes.md)). Run a local copy.
 
 **A TypeScript, PHP or Laravel run says it's loading for a while.** The first run downloads the
-runtime from jsDelivr / esm.sh (TypeScript ~3 MB, PHP ~6 MB, the Laravel app ~5 MB). If a CDN is
-unreachable, those courses can't run.
+runtime from jsDelivr / esm.sh (TypeScript ~3 MB, PHP ~6 MB, the Laravel app ~5 MB, clang ~23 MB).
+If a CDN is unreachable, those courses can't run.
 
 **`/setup` says a tool is missing that you have installed.** The status endpoint resolves tools
 from `PATH` as the dev server sees it. Version managers that only patch your interactive shell

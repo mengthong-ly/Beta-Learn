@@ -1,4 +1,4 @@
-// Runs lesson code with the learner's own toolchains (c++, dart, flutter).
+// Runs lesson code with the learner's own toolchains (dart, flutter).
 // Used by app/api/run (opt-in, see docs/adr/0001-local-runner.md) and scripts/check-content.ts.
 // Every lesson process runs in the OS sandbox (lib/sandbox.ts) with a scrubbed env.
 // No path aliases, erasable TypeScript only: Node runs this file directly.
@@ -22,7 +22,6 @@ export type LocalResult = {
 }
 
 export const LOCAL_COURSES = [
-  "cpp",
   "dart",
   "flutter",
 ] as const
@@ -36,7 +35,6 @@ const FLUTTER = path.join(RUNTIMES, "flutter")
 export const CHECK_MARK = "@@thonglearn-check "
 const MAX_OUTPUT = 256_000
 const TIMEOUT: Record<LocalCourse, number> = {
-  cpp: 30_000,
   dart: 30_000,
   flutter: 300_000,
 }
@@ -159,79 +157,6 @@ async function withTemp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
-}
-
-// --- C++: the learner's own compiler (`c++`); the check includes the lesson as a header. ---
-// The lesson's `main` is renamed so check.cpp can call it and capture what it prints.
-const CPP_CHECK = (check: string) => `#include <iostream>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-#include "lesson.hpp"
-
-static std::vector<std::string> output;
-
-static void expect(bool ok, const std::string &message = "Check failed") {
-  if (!ok) throw std::runtime_error(message);
-}
-
-static std::string escape(const std::string &s) {
-  std::string out;
-  for (char c : s) {
-    if (c == '"' || c == '\\\\') out += '\\\\';
-    else if (c == '\\n') { out += "\\\\n"; continue; }
-    out += c;
-  }
-  return out;
-}
-
-int main() {
-  std::ostringstream captured;
-  std::streambuf *saved = std::cout.rdbuf(captured.rdbuf());
-  lesson_main();
-  std::cout.rdbuf(saved);
-  std::cout << captured.str();
-  std::istringstream reader(captured.str());
-  for (std::string line; std::getline(reader, line);) output.push_back(line);
-  try {
-${check}
-    std::cerr << "${CHECK_MARK}" << "{\\"pass\\": true}" << std::endl;
-  } catch (const std::exception &e) {
-    std::cerr << "${CHECK_MARK}" << "{\\"pass\\": false, \\"message\\": \\"" << escape(e.what())
-              << "\\"}" << std::endl;
-  }
-}
-`
-
-async function runCpp(code: string, check: string | undefined, signal?: AbortSignal) {
-  return withTemp(async (dir) => {
-    const started = Date.now()
-    const entry = check ? "check.cpp" : "main.cpp"
-    if (check) {
-      // Same lines as main.cpp, so compiler errors still point at the learner's line.
-      await writeFile(path.join(dir, "lesson.hpp"), code.replace(/\bint(\s+)main(\s*)\(/, "int$1lesson_main$2("))
-      await writeFile(path.join(dir, "check.cpp"), CPP_CHECK(check))
-    } else await writeFile(path.join(dir, "main.cpp"), code)
-    const compile = await runProcess("c++", ["-std=c++23", "-Wall", "-o", "lesson", entry], {
-      cwd: dir,
-      timeout: TIMEOUT.cpp,
-      signal,
-      sandbox: [dir],
-    })
-    const asMain = (s: string) => s.replaceAll("lesson.hpp", "main.cpp")
-    const lineRe = /main\.cpp:(\d+)/
-    if (compile.code !== 0)
-      return settle(
-        { ...compile, stderr: asMain(compile.stdout + compile.stderr), stdout: "" },
-        started,
-        dir,
-        "main.cpp",
-        lineRe
-      )
-    const r = await runProcess(path.join(dir, "lesson"), [], { cwd: dir, timeout: TIMEOUT.cpp, signal, sandbox: [dir] })
-    return settle({ ...r, stderr: asMain(r.stderr) }, started, dir, "main.cpp", lineRe)
-  })
 }
 
 // --- Dart: the VM runs the file directly (no `dart run`, whose telemetry writes to ~/.dart-tool);
@@ -379,8 +304,6 @@ export function runLocal(
   opts: { signal?: AbortSignal; flutterMode?: "run" | "test" } = {}
 ): Promise<LocalResult> {
   switch (course) {
-    case "cpp":
-      return runCpp(code, check, opts.signal)
     case "dart":
       return runDart(code, check, opts.signal)
     case "flutter":
@@ -402,13 +325,11 @@ export async function toolStatus() {
     const r = await runProcess(cmd, args, { cwd: process.cwd(), timeout: 60_000 })
     return r.code === 0 ? (r.stdout + r.stderr).trim().split("\n")[0] : undefined
   }
-  const [cpp, dart, flutter] = await Promise.all([
-    version("c++", ["--version"]),
+  const [dart, flutter] = await Promise.all([
     version("dart", ["--version"]),
     version("flutter", ["--version"]),
   ])
   return {
-    cpp,
     dart,
     flutter,
     flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")),

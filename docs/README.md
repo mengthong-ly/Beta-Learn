@@ -68,7 +68,7 @@ That's enough for the **Python** and **React** courses — they run entirely in 
 Python lesson, press **Run**, and watch a check pass. You now understand the product better than
 any doc will explain it.
 
-C++, Dart and Flutter run on your own toolchains (PHP, Laravel, TypeScript and Claude Code run
+Dart and Flutter run on your own toolchains (PHP, Laravel, TypeScript, Claude Code and C++ run
 in the browser, like Python and React):
 
 ```bash
@@ -186,12 +186,12 @@ Runner-only variables (`LOCAL_RUNNER`, `THONGLEARN_UNSANDBOXED`,
 
 ```bash
 npm run dev                      # dev server, local runner on, bound to 127.0.0.1
-npm run setup:runtimes           # once: creates runtimes/flutter (C++ and Dart need only their tools)
+npm run setup:runtimes           # once: creates runtimes/flutter (Dart needs only its own tool)
 npm run lint                     # eslint
 npm run typecheck                # tsc --noEmit
 npm test                         # node:test over lib/*.test.ts (pure logic only)
 npm run check:content            # runs every lesson + guide example for real — slow, the real gate
-npm run check:content -- --record dart cpp   # save real outputs for write-only courses
+npm run check:content -- --record dart       # save real outputs for write-only courses
 npm run check:content -- php     # one or more courses only
 npm run check:runner             # self-check for lib/local-runner.ts per toolchain
 npm run format                   # prettier (ts/tsx only — not Markdown or CSS)

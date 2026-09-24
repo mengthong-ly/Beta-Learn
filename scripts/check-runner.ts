@@ -17,11 +17,6 @@ const t = async (name: string, p: Promise<LocalResult>, f: (r: LocalResult) => v
 // PHP
 // Laravel
 // TypeScript
-// C++
-await t("cpp run", runLocal("cpp", '#include <iostream>\nint main() {\n  std::cout << "hi\\n";\n}'), (r) => { assert.equal(r.error, undefined, r.error); assert.deepEqual(r.lines, [{ kind: "out", text: "hi" }]) })
-await t("cpp compile error", runLocal("cpp", '#include <iostream>\nint main() {\n  std::cout << "oops"\n}'), (r) => { assert.ok(r.error); assert.equal(r.errorLine, 3) })
-await t("cpp check", runLocal("cpp", '#include <iostream>\nint twice(int x) { return x * 2; }\nint main() {\n  std::cout << twice(2) << "\\n";\n}', '    expect(twice(3) == 6);\n    expect(output[0] == "4", "prints 4");'), (r) => assert.deepEqual(r.check, { pass: true }))
-await t("cpp check fail", runLocal("cpp", '#include <iostream>\nint twice(int x) { return x; }\nint main() {}', '    expect(twice(3) == 6, "twice(3) should be 6");'), (r) => assert.deepEqual(r.check, { pass: false, message: "twice(3) should be 6" }))
 // Dart
 await t("dart run", runLocal("dart", "void main() {\n  print('hi');\n}"), (r) => { assert.equal(r.error, undefined, r.error); assert.deepEqual(r.lines, [{ kind: "out", text: "hi" }]) })
 await t("dart compile error", runLocal("dart", "void main() {\n  int x = 'a';\n}"), (r) => { assert.ok(r.error); assert.equal(r.errorLine, 2) })

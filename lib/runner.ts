@@ -81,6 +81,10 @@ const WORKERS = {
     url: "/ts.worker.js",
     labels: { booting: "Loading TypeScript (first run downloads ~3 MB)" },
   },
+  cpp: {
+    url: "/cpp.worker.js",
+    labels: { installing: "Downloading clang (first run only, ~23 MB)" },
+  },
   php: {
     url: "/php.worker.js",
     labels: {

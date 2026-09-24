@@ -42,8 +42,6 @@ export async function requirements(): Promise<Requirement[]> {
     sandbox: true,
   })
   const rows: [LocalCourse, Item[]][] = [
-    // Any compiler with C++23 support: Apple clang 15+, clang 16+ or g++ 13+.
-    ["cpp", [{ name: "C++ compiler (c++)", found: version(t.cpp), need: "clang 15+ / g++ 13+", ok: !!t.cpp }]],
     ["dart", [tool("Dart", t.dart, "≥ 3.13", "3.13")]],
     [
       "flutter",
