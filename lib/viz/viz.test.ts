@@ -258,3 +258,29 @@ test("layout: frame labels show locals; a big program is capped", () => {
   )
   assert.deepEqual(many.hidden, { vars: 3, lists: 0 })
 })
+
+test("each function gets its own machine, even with C++ names like Shelf::add", () => {
+  const L = layoutOf(
+    steps(
+      { type: "call", fn: "main", args: [] },
+      { type: "call", fn: "Shelf::add", args: [["pages", 412]] },
+      { type: "return", fn: "Shelf::add", value: 1 },
+      { type: "var.set", name: "n", value: 1 },
+      { type: "return", fn: "main", value: 0 }
+    )
+  )
+  const fns = L.placed.filter((p) => p.id.startsWith("fn:"))
+  assert.deepEqual(
+    fns.map((p) => p.id),
+    ["fn:main", "fn:Shelf::add"]
+  )
+  assert.notEqual(fns[0].y, fns[1].y)
+  const finite = (o: unknown): boolean =>
+    typeof o === "number"
+      ? Number.isFinite(o)
+      : !o || typeof o !== "object" || Object.values(o).every(finite)
+  for (let i = 0; i <= 5; i++)
+    assert.ok(finite(sceneAt(L, i, true)), `step ${i}`)
+  const add = sceneAt(L, 2, true).nodes.find((n) => n.id === "fn:Shelf::add")!
+  assert.match(JSON.stringify(add.data), /Shelf::add/)
+})

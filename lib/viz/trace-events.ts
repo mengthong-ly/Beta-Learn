@@ -29,6 +29,9 @@ export type Snap = {
 
 export type Trace = { snaps: Snap[]; truncated: boolean; stdout: string }
 
+/** Which language the trace came from: it decides how notes and lists are worded. */
+export type Lang = "python" | "cpp"
+
 type Remove = Extract<VizEvent, { type: "array.remove" }>
 type SetVar = Extract<VizEvent, { type: "var.set" }>
 
@@ -37,13 +40,16 @@ const isRef = (v: unknown): v is { ref: string } =>
   typeof v === "object" && v !== null && "ref" in v
 
 /** A list the event model can't point at (a returned list, say) becomes a card. */
-function asVal(v: TValue, s: Snap): Val {
+function asVal(v: TValue, s: Snap, lang: Lang): Val {
   if (!isRef(v)) return v
-  return {
-    repr: `[${(s.lists[v.ref]?.items ?? []).map(formatVal).join(", ")}]`,
-    type: "list",
-  }
+  const items = (s.lists[v.ref]?.items ?? []).map(formatVal).join(", ")
+  return lang === "cpp"
+    ? { repr: `{${items}}`, type: "vector" }
+    : { repr: `[${items}]`, type: "list" }
 }
+
+const isVoid = (v: Val) =>
+  typeof v === "object" && v !== null && v.type === "void"
 
 /** A name the code in frame d can use for list `id`: its own variables first, then globals it doesn't shadow. */
 function holder(s: Snap, id: string, d: number): string | undefined {
@@ -112,7 +118,12 @@ export function listOps(name: string, a: Val[], b: Val[]): VizEvent[] {
 }
 
 /** One or two plain sentences about an event, from the state just before it. */
-export function noteFor(ev: VizEvent, p: Program): string {
+export function noteFor(
+  ev: VizEvent,
+  p: Program,
+  lang: Lang = "python"
+): string {
+  const cpp = lang === "cpp"
   const items = (name: string) => {
     try {
       return p.lists[listId(p, name)]
@@ -126,12 +137,16 @@ export function noteFor(ev: VizEvent, p: Program): string {
         ? p.frames[p.frames.length - 1].locals
         : p.globals
       const old = scope[ev.name]
-      return old && "val" in old
-        ? `${ev.name} changes from ${formatVal(old.val)} to ${formatVal(ev.value)}.`
+      if (old && "val" in old)
+        return `${ev.name} changes from ${formatVal(old.val)} to ${formatVal(ev.value)}.`
+      return cpp
+        ? `A new variable ${ev.name} is declared, holding ${formatVal(ev.value)}.`
         : `A new name ${ev.name} appears, bound to ${formatVal(ev.value)}.`
     }
     case "array.create":
-      return `A new list [${ev.values.map(formatVal).join(", ")}] is created, and ${ev.name} refers to it.`
+      return cpp
+        ? `A new vector ${ev.name} is created, holding {${ev.values.map(formatVal).join(", ")}}.`
+        : `A new list [${ev.values.map(formatVal).join(", ")}] is created, and ${ev.name} refers to it.`
     case "array.insert":
       return ev.index === items(ev.name).length
         ? `${formatVal(ev.value)} is added to the end of ${ev.name}, at index ${ev.index}.`
@@ -146,15 +161,19 @@ export function noteFor(ev: VizEvent, p: Program): string {
       return `${ev.name}[${ev.index}] changes from ${old === undefined ? "?" : formatVal(old)} to ${formatVal(ev.value)}.`
     }
     case "ref.set":
-      return `${ev.name} now refers to the same list as ${ev.to}: a change through either name changes both.`
+      return `${ev.name} now refers to the same ${cpp ? "vector" : "list"} as ${ev.to}: a change through either name changes both.`
     case "var.del":
-      return `del removes the name ${ev.name}.`
+      return cpp
+        ? `${ev.name} goes out of scope.`
+        : `del removes the name ${ev.name}.`
     case "call":
       return `${ev.fn}(${ev.args.map(([k, a]) => argLabel(k, a)).join(", ")}) is called: a new frame opens for its variables.`
     case "return":
-      return `${ev.fn} returns ${formatVal(ev.value)}, and its frame is removed.`
+      return isVoid(ev.value)
+        ? `${ev.fn} finishes, and its frame is removed.`
+        : `${ev.fn} returns ${formatVal(ev.value)}, and its frame is removed.`
     case "print":
-      return `print() writes ${JSON.stringify(ev.text)} to the output.`
+      return `${cpp ? "cout" : "print()"} writes ${JSON.stringify(ev.text)} to the output.`
     case "error":
       return "The program stopped with an error."
     default:
@@ -165,7 +184,8 @@ export function noteFor(ev: VizEvent, p: Program): string {
 /** One step per change between consecutive snapshots, each tagged with the line that caused it. */
 export function toSteps(
   trace: Trace,
-  error?: { text: string; line?: number }
+  error?: { text: string; line?: number },
+  lang: Lang = "python"
 ): Step[] {
   const { snaps, stdout } = trace
   const steps: Step[] = []
@@ -174,7 +194,7 @@ export function toSteps(
   const emit = (event: VizEvent, line: number) => {
     try {
       const next = apply(p, event)
-      steps.push({ event, line, note: noteFor(event, p) })
+      steps.push({ event, line, note: noteFor(event, p, lang) })
       p = next
     } catch {
       /* skipped */
@@ -255,38 +275,47 @@ export function toSteps(
   }
 
   const lastLine: number[] = [] // the latest line each frame depth was on
+  // The snapshot each frame depth was last diffed against. A caller's variables can change while
+  // a callee runs (a method changing *this, a dict passed in), so it's diffed from there.
+  const base: Snap[] = []
   snaps.forEach((b, k) => {
     const a = snaps[k - 1]
+    // How many frames a and b share. A return snapshot's own frame is always gone, even when the
+    // next call lands at the same depth (f() + g(), or fib(n - 1) + fib(n - 2)).
+    let keep = 0
     if (a) {
       const la = a.frames.length
       const lb = b.frames.length
+      keep = Math.min(la - (a.event === "return" ? 1 : 0), lb)
+      while (keep > 0 && a.frames[keep - 1].fn !== b.frames[keep - 1].fn) keep--
       const lineIn = (d: number) => lastLine[d] ?? a.line
       // 1. calls that ended, innermost first
-      for (let d = la - 1; d >= lb; d--) {
+      for (let d = la - 1; d >= keep; d--) {
         const value =
           d === la - 1 && a.event === "return" && a.ret !== undefined
-            ? asVal(a.ret, a)
+            ? asVal(a.ret, a, lang)
             : null
         emit({ type: "return", fn: a.frames[d].fn, value }, lineIn(d))
       }
       // 2. the frame both snapshots share
-      const d = Math.min(la, lb) - 1
-      if (d >= 0 && a.frames[d].fn === b.frames[d].fn)
-        changes(a, b, d, lineIn(d))
-      // 3. output written meanwhile
-      prints(b.out, lineIn(la - 1))
+      const d = keep - 1
+      if (d >= 0) changes(base[d] ?? a, b, d, lineIn(d))
+      // 3. output written meanwhile: after a return, by the caller
+      prints(b.out, lineIn(a.event === "return" ? keep - 1 : la - 1))
       // 4. calls that started, outermost first
-      for (let d = la; d < lb; d++) {
+      for (let d = keep; d < lb; d++) {
         const args = b.frames[d].vars.map(([n, v]): [string, Arg] => {
           if (!isRef(v)) return [n, v]
           const alias = holder(b, v.ref, d - 1)
-          return [n, alias ? { alias } : asVal(v, b)]
+          return [n, alias ? { alias } : asVal(v, b, lang)]
         })
         emit({ type: "call", fn: b.frames[d].fn, args }, lineIn(d - 1))
       }
     }
-    lastLine.length = b.frames.length
+    lastLine.length = keep
     lastLine[b.frames.length - 1] = b.line
+    base.length = keep && keep - 1
+    for (let d = Math.max(keep - 1, 0); d < b.frames.length; d++) base[d] = b
   })
   prints(stdout.length, lastLine.at(-1) ?? 1, true)
   if (error)

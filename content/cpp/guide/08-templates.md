@@ -55,7 +55,7 @@ int main() {
 
 ## Class templates
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <stdexcept>
 #include <vector>

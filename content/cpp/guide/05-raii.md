@@ -48,7 +48,7 @@ int main() {
 
 The RAII version has no cleanup code at all, and it is correct on *every* path — including one that throws.
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <stdexcept>
 

@@ -76,6 +76,7 @@ import { pushRow } from "@/lib/sync"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
 import { playground, type Lesson } from "@/lib/lesson-parser"
 import {
+  canTrace,
   reset,
   run,
   show,
@@ -497,7 +498,7 @@ export function Workspace({
           {c.runtime === "pyodide" && (
             <TabsTrigger value="inspect">Inspect</TabsTrigger>
           )}
-          {c.runtime === "pyodide" && (
+          {canTrace(c.runtime) && (
             <TabsTrigger value="visualize">Visualize</TabsTrigger>
           )}
           <TabsTrigger value="history">
@@ -529,9 +530,14 @@ export function Workspace({
           }}
         />
       </TabsContent>
-      {c.runtime === "pyodide" && (
+      {canTrace(c.runtime) && (
         <TabsContent value="visualize" className="min-h-0">
-          <VisualizePane code={code} docKey={saveKey} onLine={setVizLine} />
+          <VisualizePane
+            code={code}
+            docKey={saveKey}
+            runtime={c.runtime}
+            onLine={setVizLine}
+          />
         </TabsContent>
       )}
       <TabsContent value="history" className="min-h-0 overflow-auto">

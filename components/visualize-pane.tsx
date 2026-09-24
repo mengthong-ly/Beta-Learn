@@ -14,7 +14,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Spinner } from "@/components/ui/spinner"
-import { trace, type TraceResult } from "@/lib/runner"
+import { trace, type TraceResult, type TraceRuntime } from "@/lib/runner"
 import type { Step } from "@/lib/viz/events"
 import { toSteps } from "@/lib/viz/trace-events"
 
@@ -31,12 +31,18 @@ type Traced = {
 let last: Traced | undefined
 let count = 0
 
-function toTraced(doc: string, code: string, r: TraceResult): Traced {
+function toTraced(
+  doc: string,
+  code: string,
+  r: TraceResult,
+  runtime: TraceRuntime
+): Traced {
   const t: Traced = { n: ++count, doc, code, error: r.error }
   if (r.trace) {
     t.steps = toSteps(
       r.trace,
-      r.error ? { text: r.error, line: r.errorLine } : undefined
+      r.error ? { text: r.error, line: r.errorLine } : undefined,
+      runtime === "cpp" ? "cpp" : "python"
     )
     t.truncated = r.trace.truncated
   }
@@ -50,10 +56,12 @@ function toTraced(doc: string, code: string, r: TraceResult): Traced {
 export function VisualizePane({
   code,
   docKey,
+  runtime,
   onLine,
 }: {
   code: string
   docKey: string
+  runtime: TraceRuntime
   onLine: (line?: number) => void
 }) {
   const fresh = last?.doc === docKey ? last : undefined
@@ -62,12 +70,12 @@ export function VisualizePane({
 
   const start = useCallback(
     (c: string) =>
-      trace(c).then((r) => {
-        last = toTraced(docKey, c, r)
+      trace(c, runtime).then((r) => {
+        last = toTraced(docKey, c, r, runtime)
         setResult(last)
         setBusy(false)
       }),
-    [docKey]
+    [docKey, runtime]
   )
   useEffect(() => {
     if (!fresh) start(code)
@@ -87,7 +95,11 @@ export function VisualizePane({
             <Spinner />
           </EmptyMedia>
           <EmptyTitle>Recording your program</EmptyTitle>
-          <EmptyDescription>Running it once, line by line.</EmptyDescription>
+          <EmptyDescription>
+            {runtime === "cpp"
+              ? "Compiling it with recording built in, then running it once. The first time downloads clang (~23 MB)."
+              : "Running it once, line by line."}
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     )

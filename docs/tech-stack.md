@@ -134,8 +134,11 @@ esm.sh at runtime — also not npm dependencies. TypeScript and Claude Code less
 `typescript-6` (npm alias of `typescript@6.0.3`, copied into `public/generated/ts` by
 `scripts/build-ts-assets.mjs`) and run with `@modelcontextprotocol/sdk` 1.30.0 and zod 4.6.5 from
 esm.sh. PHP and Laravel run on `@php-wasm/web-8-5` 3.1.55 from jsDelivr (GPL, never bundled);
-`@php-wasm/node-8-5` is the same build for `check:content`. Dart and Flutter use the
-learner's own toolchains.
+`@php-wasm/node-8-5` is the same build for `check:content`. C++ compiles with `@yowasp/clang`
+and runs under `@bjorn3/browser_wasi_shim`, and its Visualize tab parses with `web-tree-sitter`
+0.27.0 and `tree-sitter-cpp` 0.23.4, all from jsDelivr in `public/cpp.worker.js`; the devDependency
+copies (same versions) are for `check:content` and the tests. Dart and Flutter use the learner's
+own toolchains.
 
 Version pinning matters in places that npm doesn't police: Pyodide 314 in the worker, Monaco
 0.56.0 in `code-editor.tsx`, React 19.3.0 in the React preview, the SDK and zod versions in

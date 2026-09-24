@@ -7,7 +7,7 @@ C++ gives you several error mechanisms and an opinion about none of them. Choosi
 
 ## Exceptions
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -45,7 +45,7 @@ Catch by **`const` reference**. Catching by value slices a derived exception dow
 
 ## The standard hierarchy
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -86,7 +86,7 @@ std::exception
 
 ## Exception safety guarantees
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <vector>
 #include <string>
@@ -152,7 +152,7 @@ int main() {
 
 For "there might be no value", where absence is normal rather than exceptional.
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <optional>
 #include <string>
@@ -207,7 +207,7 @@ int main() {
 
 C++23's answer for "failed, and here is why", without exceptions.
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <expected>
 #include <string>

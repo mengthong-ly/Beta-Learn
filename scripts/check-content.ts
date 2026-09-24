@@ -13,7 +13,7 @@
 import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { pathToFileURL } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { gunzipSync } from "node:zlib"
 
 import { courses, type Course } from "../lib/courses.ts"
@@ -182,10 +182,28 @@ const local =
     runLocal(course, code, check, { flutterMode: "test" })
 
 // --- C++: the browser runtime's clang (YoWASP's LLVM 22 for wasm), run in Node. ---
+/** C++ examples must also trace for the Visualize tab, printing what Run prints → a problem, or undefined. */
+let follow: ((code: string, r: Result) => Promise<string | undefined>) | undefined
+
 async function cpp(): Promise<Execute> {
   const { commands } = await import("@yowasp/clang")
   const wasi = await import("@bjorn3/browser_wasi_shim")
   const { compileAndRun } = await import("../public/cpp-run.js")
+  const { traceCpp } = await import("../public/cpp-trace.js")
+  const { Language, Parser } = await import("web-tree-sitter")
+  await Parser.init()
+  const parser = new Parser()
+  parser.setLanguage(
+    await Language.load(fileURLToPath(new URL("../node_modules/tree-sitter-cpp/tree-sitter-cpp.wasm", import.meta.url)))
+  )
+  const printed = (r: Result) => (r.lines ?? []).filter((l) => l.kind === "out").map((l) => l.text).join("\n")
+  follow = async (code, r) => {
+    const t = await traceCpp(commands["clang++"], wasi, parser, code)
+    if (!t.trace) return `can't be traced: ${t.error?.split("\n")[0]}\n      ${code.split("\n")[0]}`
+    // Recording takes time, so code that measures time can print differently when traced.
+    if (t.trace.stdout.replace(/\n$/, "") !== printed(r) && !code.includes("<chrono>"))
+      return `traced output differs from Run: ${code.split("\n")[0]}`
+  }
   return (code, check) => compileAndRun(commands["clang++"], wasi, { code, check }) as Promise<Result>
 }
 
@@ -254,6 +272,8 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
             problems.push("starter already passes the check")
           const missing = await note(l.solution) // run again without the check for clean output
           if (missing) problems.push(missing)
+          const lost = follow && (await follow(l.solution, await execute(l.solution)))
+          if (lost) problems.push(lost)
         }
       } else if (!l.summary) problems.push("missing summary")
       const examples = examplesIn(l.body, c.lang)
@@ -267,6 +287,8 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
           problems.push(`example marked "error!" didn't fail: ${code.split("\n")[0]}`)
         const missing = await note(code, r)
         if (missing) problems.push(missing)
+        const lost = marksError(code) ? undefined : await follow?.(code, r)
+        if (lost) problems.push(lost)
       }
       // "What does this print?": the + answer must be the real output.
       for (const q of l.quiz ?? []) {

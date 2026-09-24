@@ -5,7 +5,7 @@ summary: Access control, constructors and member initialisation, virtual dispatc
 ---
 ## A class
 
-```cpp
+```cpp-snippet
 #include <iostream>
 #include <string>
 #include <stdexcept>

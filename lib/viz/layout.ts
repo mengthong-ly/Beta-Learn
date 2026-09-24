@@ -383,14 +383,12 @@ export function layoutOf(steps: Step[]) {
         canvas: c,
       })
     const x0 = right() + 56
-    for (const [name, depth] of fns)
-      placed.push({
-        id: `fn:${name}`,
-        type: "fn",
-        x: x0,
-        y: 0,
-        canvas: machine(depth),
-      })
+    let y = 0 // one machine per function, in a column, in the order they're first called
+    for (const [name, depth] of fns) {
+      const canvas = machine(depth)
+      placed.push({ id: `fn:${name}`, type: "fn", x: x0, y, canvas })
+      y += canvas.height + 24
+    }
     for (const id of conds.keys()) {
       placed.push({
         id: `gate:${id}`,
@@ -541,7 +539,8 @@ function dataFor(
 ): VizNode["data"] {
   const { program: p, scene: s } = f
   const focus = s.focus
-  const [, key] = n.id.split(":")
+  // everything after the kind: a C++ function key like Shelf::add has colons of its own
+  const key = n.id.slice(n.id.indexOf(":") + 1)
   switch (n.type) {
     case "scope":
       return {
@@ -678,7 +677,7 @@ function anchor(
       }
     return undefined
   }
-  const fn = ref.match(/^fn:([^:]+):(.+)$/)
+  const fn = ref.match(/^fn:(.+):(in|out|frame:\d+)$/)
   if (fn) return pt(node(`fn:${fn[1]}`), fn[2])
   return pt(node(ref), role === "from" ? "out" : "in")
 }

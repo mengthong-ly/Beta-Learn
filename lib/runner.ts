@@ -209,10 +209,16 @@ export function useCanRun(course: Pick<Course, "runtime">) {
 
 export type TraceResult = { trace?: Trace; error?: string; errorLine?: number }
 
+/** The runtimes the Visualize tab can record. */
+export type TraceRuntime = "pyodide" | "cpp"
+export const canTrace = (runtime: string): runtime is TraceRuntime =>
+  runtime === "pyodide" || runtime === "cpp"
+
 let traceId = 0
 let tracing:
   | {
       id: number
+      runtime: TraceRuntime
       resolve: (r: TraceResult) => void
       timer?: ReturnType<typeof setTimeout>
     }
@@ -234,15 +240,16 @@ function onTraceMessage(data: {
   errorLine?: number
 }) {
   if (!tracing || data.id !== tracing.id) return // an older trace, already replaced
+  const { runtime } = tracing
   if (data.type === "phase" && data.phase === "running")
     tracing.timer = setTimeout(() => {
       endTrace({
         error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?`,
       })
       // a busy worker can't be interrupted without SharedArrayBuffer; replace it
-      workers.pyodide?.terminate()
-      booted.delete("pyodide")
-      spawn("pyodide")
+      workers[runtime]?.terminate()
+      booted.delete(runtime)
+      spawn(runtime)
     }, TIMEOUT_MS)
   if (data.type === "done")
     endTrace({
@@ -252,15 +259,18 @@ function onTraceMessage(data: {
     })
 }
 
-/** Record a Python run for the Visualize tab. Never touches the Output tab's state or history. */
-export function trace(code: string): Promise<TraceResult> {
+/** Record a run for the Visualize tab. Never touches the Output tab's state or history. */
+export function trace(
+  code: string,
+  runtime: TraceRuntime
+): Promise<TraceResult> {
   if (state.status === "running") stop()
   endTrace({ error: "Replaced by a newer trace." })
-  warm("pyodide")
+  warm(runtime)
   const id = ++traceId
   return new Promise((resolve) => {
-    tracing = { id, resolve }
-    workers.pyodide!.postMessage({ type: "trace", id, code })
+    tracing = { id, runtime, resolve }
+    workers[runtime]!.postMessage({ type: "trace", id, code })
   })
 }
 
