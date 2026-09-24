@@ -2,9 +2,9 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 
 import { frameAt } from "./beat.ts"
-import type { Step, VizEvent } from "./events.ts"
+import { formatVal, type Step, type VizEvent } from "./events.ts"
 import { boxBounds, isoPath, project } from "./iso.ts"
-import { apply, EMPTY, replay } from "./program.ts"
+import { apply, EMPTY, machineSlot, replay, resolve } from "./program.ts"
 
 const steps = (...events: VizEvent[]): Step[] =>
   events.map((event, i) => ({ event, line: i + 1, note: "" }))
@@ -125,4 +125,80 @@ test("a loop copies each element into the loop variable, print flows to output",
     to: "output",
     label: "20",
   })
+})
+
+test("inside a call, assignments are locals; after it, globals", () => {
+  const s = steps(
+    { type: "call", fn: "f", args: [["n", 2]] },
+    { type: "var.set", name: "total", value: 5 },
+    { type: "return", fn: "f", value: 5 },
+    { type: "var.set", name: "r", value: 5 }
+  )
+  const inside = replay(s, 1)
+  assert.deepEqual(inside.frames[0].locals, {
+    n: { val: 2 },
+    total: { val: 5 },
+  })
+  assert.equal(inside.globals.total, undefined)
+  const after = replay(s, 3)
+  assert.deepEqual(after.globals, { r: { val: 5 } })
+})
+
+test("a call with an aliased list mutates the caller's list", () => {
+  const p = replay(
+    steps(
+      { type: "array.create", name: "data", values: [1, 2] },
+      { type: "call", fn: "grow", args: [["nums", { alias: "data" }]] },
+      { type: "array.insert", name: "nums", index: 2, value: 3 }
+    ),
+    2
+  )
+  assert.deepEqual(p.lists.L1, [1, 2, 3])
+  assert.deepEqual(resolve(p, "nums").binding, { ref: "L1" })
+  assert.equal(resolve(p, "nums").frame, 0)
+})
+
+test("ref.set makes two names share one list; var.del removes a name", () => {
+  const p = replay(
+    steps(
+      { type: "array.create", name: "a", values: [1] },
+      { type: "ref.set", name: "b", to: "a" },
+      { type: "array.insert", name: "b", index: 1, value: 2 },
+      { type: "var.set", name: "x", value: 1 },
+      { type: "var.del", name: "x" }
+    ),
+    4
+  )
+  assert.deepEqual(p.globals.b, { ref: "L1" })
+  assert.deepEqual(p.lists.L1, [1, 2])
+  assert.equal(p.globals.x, undefined)
+  assert.throws(() => apply(p, { type: "ref.set", name: "c", to: "nope" }))
+})
+
+test("frames are placed per machine, so two functions don't collide", () => {
+  const s = steps(
+    { type: "call", fn: "main", args: [] },
+    { type: "call", fn: "helper", args: [["n", 1]] },
+    { type: "return", fn: "helper", value: 2 }
+  )
+  assert.equal(machineSlot(replay(s, 1).frames, 1), 0)
+  assert.deepEqual(frameAt(s, 1).beat.flights[0], {
+    from: "fn:main:frame:0",
+    to: "fn:helper:frame:0",
+    label: "1",
+  })
+  assert.deepEqual(frameAt(s, 2).beat.flights[0], {
+    from: "fn:helper:frame:0",
+    to: "fn:main:frame:0",
+    label: "2",
+  })
+})
+
+test("value cards format as their repr; errors are recorded", () => {
+  assert.equal(formatVal({ repr: "{'a': 1}", type: "dict" }), "{'a': 1}")
+  const p = replay(
+    steps({ type: "error", text: "IndexError: list index out of range" }),
+    0
+  )
+  assert.equal(p.error, "IndexError: list index out of range")
 })

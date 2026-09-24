@@ -5,7 +5,7 @@
 import type { Edge, Node } from "@xyflow/react"
 
 import { framesOf, nodeOf, type Beat, type Snapshot } from "./beat.ts"
-import { formatVal, type Demo, type PipelineStage, type Val } from "./events.ts"
+import { argLabel, type Demo, type PipelineStage, type Val } from "./events.ts"
 import {
   boxBounds,
   project,
@@ -556,7 +556,7 @@ function dataFor(
         maxDepth: L.fns.get(key)!,
         frames: mine.map(({ fr, i }) => ({
           id: s.frames[i],
-          label: `${fr.fn}(${fr.args.map(([k, v]) => `${k}=${formatVal(v)}`).join(", ")})`,
+          label: `${fr.fn}(${fr.args.map(([k, v]) => argLabel(k, v)).join(", ")})`,
           got: fr.got,
           active: i === p.frames.length - 1,
         })),

@@ -1,8 +1,15 @@
 // Layer 3, animation state: what moves during one step. Derived from the states before
 // and after the step, so the renderer never has to work it out from values.
 
-import { formatVal, type Step, type VizEvent } from "./events.ts"
-import { apply, EMPTY, type Program } from "./program.ts"
+import { formatVal, isAlias, type Step, type VizEvent } from "./events.ts"
+import {
+  apply,
+  EMPTY,
+  listId,
+  machineSlot,
+  resolve,
+  type Program,
+} from "./program.ts"
 import { EMPTY_SCENE, reduceScene, type Focus, type Scene } from "./scene.ts"
 
 /** A value travelling between two anchors (see layout.ts for how anchors resolve). */
@@ -27,13 +34,27 @@ export const QUIET: Beat = {
   particles: [],
 }
 
+/** Is `name` a global right now (not shadowed by the running call's variables)? */
+const isGlobal = (p: Program, name: string) =>
+  resolve(p, name).frame === undefined
+
+const frameAnchor = (p: Program, i: number) =>
+  `fn:${p.frames[i].fn}:frame:${machineSlot(p.frames, i)}`
+
+/** Where a variable is drawn: its slot in the global scope, or its call's frame. */
+function varAnchor(p: Program, name: string): string {
+  const { frame } = resolve(p, name)
+  return frame === undefined ? `var:${name}` : frameAnchor(p, frame)
+}
+
 /** The React Flow node a focus lives in. */
 export function nodeOf(f: Focus | null, p: Program): string | undefined {
   if (!f) return undefined
   switch (f.kind) {
     case "var": {
-      const b = p.globals[f.name]
-      return b && "ref" in b ? `list:${b.ref}` : "scope"
+      const { binding, frame } = resolve(p, f.name)
+      if (frame !== undefined) return `fn:${p.frames[frame].fn}`
+      return binding && "ref" in binding ? `list:${binding.ref}` : "scope"
     }
     case "list":
     case "element":
@@ -54,13 +75,11 @@ function anchorOf(f: Focus | null, s: Scene, p: Program): string | undefined {
   if (!f) return undefined
   switch (f.kind) {
     case "var":
-      return `var:${f.name}`
+      return varAnchor(p, f.name)
     case "element":
       return `el:${s.ids[f.list]?.[f.index]}`
     case "fn":
-      return f.depth === 0
-        ? `fn:${f.fn}:out`
-        : `fn:${f.fn}:frame:${f.depth - 1}`
+      return f.depth === 0 ? `fn:${f.fn}:out` : frameAnchor(p, f.depth - 1)
     default:
       return nodeOf(f, p)
   }
@@ -86,17 +105,20 @@ function beatFor(
 
   switch (ev.type) {
     case "var.set": {
-      beat.changed.push(`var:${ev.name}`)
+      if (isGlobal(next.p, ev.name)) beat.changed.push(`var:${ev.name}`)
       const f = prev.s.focus
       if (f?.kind === "fn" && f.depth === 0)
         beat.flights.push({
           from: `fn:${f.fn}:out`,
-          to: `var:${ev.name}`,
+          to: varAnchor(next.p, ev.name),
           label: formatVal(ev.value),
         })
       if (from && from !== "scope") beat.particles.push(`${from}->scope`)
       break
     }
+    case "ref.set":
+      if (isGlobal(next.p, ev.name)) beat.changed.push(`var:${ev.name}`)
+      break
     case "array.set": {
       const list = (next.s.focus as { list: string }).list
       beat.changed.push(next.s.ids[list][ev.index])
@@ -105,22 +127,22 @@ function beatFor(
     case "array.access":
     case "array.remove":
       if (ev.into) {
-        const b = prev.p.globals[ev.name] as { ref: string }
-        beat.changed.push(`var:${ev.into}`)
+        const id = listId(prev.p, ev.name)
+        if (isGlobal(next.p, ev.into)) beat.changed.push(`var:${ev.into}`)
         beat.flights.push({
-          from: el(b.ref, ev.index),
-          to: `var:${ev.into}`,
-          label: formatVal(prev.p.lists[b.ref][ev.index]),
+          from: el(id, ev.index),
+          to: varAnchor(next.p, ev.into),
+          label: formatVal(prev.p.lists[id][ev.index]),
         })
       }
       break
     case "loop.iter": {
-      const b = prev.p.globals[ev.array] as { ref: string }
-      beat.changed.push(`var:${ev.variable}`)
+      const id = listId(prev.p, ev.array)
+      if (isGlobal(next.p, ev.variable)) beat.changed.push(`var:${ev.variable}`)
       beat.flights.push({
-        from: el(b.ref, ev.index),
-        to: `var:${ev.variable}`,
-        label: formatVal(prev.p.lists[b.ref][ev.index]),
+        from: el(id, ev.index),
+        to: varAnchor(next.p, ev.variable),
+        label: formatVal(prev.p.lists[id][ev.index]),
       })
       break
     }
@@ -129,27 +151,21 @@ function beatFor(
       break
     case "call": {
       const depth = next.p.frames.length
-      const caller =
-        depth > 1
-          ? `fn:${prev.p.frames[depth - 2].fn}:frame:${depth - 2}`
-          : "scope"
       beat.flights.push({
-        from: caller,
-        to: `fn:${ev.fn}:frame:${depth - 1}`,
-        label: ev.args.map(([, v]) => formatVal(v)).join(", "),
+        from: depth > 1 ? frameAnchor(prev.p, depth - 2) : "scope",
+        to: frameAnchor(next.p, depth - 1),
+        label: ev.args
+          .map(([, a]) => (isAlias(a) ? a.alias : formatVal(a)))
+          .join(", "),
       })
       if (depth === 1) beat.particles.push(`scope->fn:${ev.fn}`)
       break
     }
     case "return": {
       const depth = prev.p.frames.length
-      const to =
-        depth > 1
-          ? `fn:${prev.p.frames[depth - 2].fn}:frame:${depth - 2}`
-          : `fn:${ev.fn}:out`
       beat.flights.push({
-        from: `fn:${ev.fn}:frame:${depth - 1}`,
-        to,
+        from: frameAnchor(prev.p, depth - 1),
+        to: depth > 1 ? frameAnchor(prev.p, depth - 2) : `fn:${ev.fn}:out`,
         label: formatVal(ev.value),
       })
       break

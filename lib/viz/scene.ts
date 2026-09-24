@@ -112,5 +112,11 @@ export function reduceScene(
       return { ...s, focus: { kind: "stage", stage: ev.stage } }
     case "print":
       return { ...s, focus: { kind: "output" } }
+    case "ref.set":
+      return { ...s, focus: { kind: "var", name: ev.name } }
+    case "var.del":
+      return { ...s, focus: null }
+    case "error":
+      return s
   }
 }
