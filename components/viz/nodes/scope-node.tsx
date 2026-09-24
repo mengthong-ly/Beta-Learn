@@ -23,7 +23,10 @@ const SOCKET = { ...BLOCK, h: 3 }
  */
 export function ScopeNode({ data }: NodeProps<Node<ScopeData, "scope">>) {
   const dur = useDur()
-  const g = useMemo(() => lane(data.capacity, data.title), [data.capacity, data.title])
+  const g = useMemo(
+    () => lane(data.capacity, data.title),
+    [data.capacity, data.title]
+  )
   const active = data.vars.findIndex((v) => v.state === "active")
   const cursor = active < 0 ? null : local(g, g.anchors[`slot:${active}`])
   const shown = data.vars.filter((v) => v.val !== undefined || v.ref)
@@ -38,7 +41,11 @@ export function ScopeNode({ data }: NodeProps<Node<ScopeData, "scope">>) {
         {data.vars.map((v, i) => {
           if (v.val === undefined && !v.ref) return null
           const p = project(g.slot(i))
-          const name = project({ x: g.slot(i).x + BLOCK.w / 2, y: g.plate.d, z: 0 })
+          const name = project({
+            x: g.slot(i).x + BLOCK.w / 2,
+            y: g.plate.d,
+            z: 0,
+          })
           const post = local(g, g.anchors[`slot:${i}`])
           return (
             <motion.g
@@ -49,15 +56,42 @@ export function ScopeNode({ data }: NodeProps<Node<ScopeData, "scope">>) {
               transition={{ duration: dur(0.45), ease: EASE }}
             >
               <g transform={`translate(${p.x},${p.y})`}>
-                {v.ref ? <IsoBox box={SOCKET} tone={v.state === "idle" ? "neutral" : "accent"} /> : <IsoBlock value={v.val} state={v.state} />}
+                {v.ref ? (
+                  <IsoBox
+                    box={SOCKET}
+                    tone={v.state === "idle" ? "neutral" : "accent"}
+                  />
+                ) : (
+                  <IsoBlock value={v.val} state={v.state} />
+                )}
               </g>
               {v.ref && (
                 <g aria-hidden>
-                  <line x1={post.x} y1={post.y + BLOCK.h - 3} x2={post.x} y2={post.y} style={{ stroke: "var(--iso-stroke)", strokeWidth: 1 }} />
-                  <circle cx={post.x} cy={post.y} r={3.5} style={{ fill: "var(--iso-top)", stroke: "var(--iso-stroke)", strokeWidth: 1 }} />
+                  <line
+                    x1={post.x}
+                    y1={post.y + BLOCK.h - 3}
+                    x2={post.x}
+                    y2={post.y}
+                    style={{ stroke: "var(--iso-stroke)", strokeWidth: 1 }}
+                  />
+                  <circle
+                    cx={post.x}
+                    cy={post.y}
+                    r={3.5}
+                    style={{
+                      fill: "var(--iso-top)",
+                      stroke: "var(--iso-stroke)",
+                      strokeWidth: 1,
+                    }}
+                  />
                 </g>
               )}
-              <Tag at={{ x: name.x - 5, y: name.y + 13 }} tone={v.state === "idle" ? "strong" : "accent"} mono size={11}>
+              <Tag
+                at={{ x: name.x - 5, y: name.y + 13 }}
+                tone={v.state === "idle" ? "strong" : "accent"}
+                mono
+                size={11}
+              >
                 {v.name}
               </Tag>
             </motion.g>

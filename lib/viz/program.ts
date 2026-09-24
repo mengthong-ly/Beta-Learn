@@ -6,7 +6,11 @@ import type { PipelineStage, Step, Val, VizEvent } from "./events.ts"
 /** A name holds a plain value or points at a list on the heap. */
 export type Binding = { val: Val } | { ref: string }
 
-export type Frame = { fn: string; args: [string, Val][]; /** last value a callee returned into it */ got?: Val }
+export type Frame = {
+  fn: string
+  args: [string, Val][]
+  /** last value a callee returned into it */ got?: Val
+}
 
 export type Program = {
   /** insertion-ordered, like a Python namespace */
@@ -21,7 +25,13 @@ export type Program = {
   payloads: Partial<Record<PipelineStage, string[]>>
 }
 
-export const EMPTY: Program = { globals: {}, lists: {}, frames: [], output: [], payloads: {} }
+export const EMPTY: Program = {
+  globals: {},
+  lists: {},
+  frames: [],
+  output: [],
+  payloads: {},
+}
 
 export function listId(p: Program, name: string): string {
   const b = p.globals[name]
@@ -43,7 +53,11 @@ export function apply(p: Program, ev: VizEvent): Program {
       return { ...p, globals: set(ev.name, { val: ev.value }) }
     case "array.create": {
       const id = `L${Object.keys(p.lists).length + 1}`
-      return { ...p, lists: { ...p.lists, [id]: [...ev.values] }, globals: set(ev.name, { ref: id }) }
+      return {
+        ...p,
+        lists: { ...p.lists, [id]: [...ev.values] },
+        globals: set(ev.name, { ref: id }),
+      }
     }
     case "array.insert": {
       const id = listId(p, ev.name)
@@ -70,12 +84,18 @@ export function apply(p: Program, ev: VizEvent): Program {
     case "array.access": {
       const id = listId(p, ev.name)
       checkIndex(p.lists[id], ev.index)
-      return ev.into ? { ...p, globals: set(ev.into, { val: p.lists[id][ev.index] }) } : p
+      return ev.into
+        ? { ...p, globals: set(ev.into, { val: p.lists[id][ev.index] }) }
+        : p
     }
     case "loop.iter": {
       const id = listId(p, ev.array)
       checkIndex(p.lists[id], ev.index)
-      return { ...p, globals: set(ev.variable, { val: p.lists[id][ev.index] }), loop: { list: id, index: ev.index } }
+      return {
+        ...p,
+        globals: set(ev.variable, { val: p.lists[id][ev.index] }),
+        loop: { list: id, index: ev.index },
+      }
     }
     case "loop.end":
       return { ...p, loop: undefined }
@@ -85,13 +105,24 @@ export function apply(p: Program, ev: VizEvent): Program {
       return { ...p, frames: [...p.frames, { fn: ev.fn, args: ev.args }] }
     case "return": {
       const top = p.frames.at(-1)
-      if (top?.fn !== ev.fn) throw new Error(`return from ${ev.fn} but ${top?.fn ?? "nothing"} is running`)
+      if (top?.fn !== ev.fn)
+        throw new Error(
+          `return from ${ev.fn} but ${top?.fn ?? "nothing"} is running`
+        )
       const frames = p.frames.slice(0, -1)
-      if (frames.length) frames[frames.length - 1] = { ...frames[frames.length - 1], got: ev.value }
+      if (frames.length)
+        frames[frames.length - 1] = {
+          ...frames[frames.length - 1],
+          got: ev.value,
+        }
       return { ...p, frames }
     }
     case "pipeline.stage":
-      return { ...p, stage: ev.stage, payloads: { ...p.payloads, [ev.stage]: ev.payload } }
+      return {
+        ...p,
+        stage: ev.stage,
+        payloads: { ...p.payloads, [ev.stage]: ev.payload },
+      }
     case "print":
       return { ...p, output: [...p.output, ev.text] }
   }

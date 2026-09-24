@@ -6,8 +6,10 @@ import type { Step, VizEvent } from "./events.ts"
 import { boxBounds, isoPath, project } from "./iso.ts"
 import { apply, EMPTY, replay } from "./program.ts"
 
-const steps = (...events: VizEvent[]): Step[] => events.map((event, i) => ({ event, line: i + 1, note: "" }))
-const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≈ ${b}`)
+const steps = (...events: VizEvent[]): Step[] =>
+  events.map((event, i) => ({ event, line: i + 1, note: "" }))
+const near = (a: number, b: number) =>
+  assert.ok(Math.abs(a - b) < 1e-6, `${a} ≈ ${b}`)
 
 test("project: the x and y axes sit 120° apart on screen, z goes straight up", () => {
   const x = project({ x: 1, y: 0 })
@@ -51,7 +53,9 @@ test("list operations follow Python: append, insert, pop, set", () => {
 test("impossible events throw instead of drawing nonsense", () => {
   const p = apply(EMPTY, { type: "array.create", name: "a", values: [1] })
   assert.throws(() => apply(p, { type: "array.remove", name: "a", index: 1 }))
-  assert.throws(() => apply(p, { type: "array.insert", name: "a", index: 3, value: 0 }))
+  assert.throws(() =>
+    apply(p, { type: "array.insert", name: "a", index: 3, value: 0 })
+  )
   assert.throws(() => apply(EMPTY, { type: "return", fn: "f", value: 1 }))
 })
 
@@ -66,7 +70,11 @@ test("element ids survive neighbours shifting", () => {
   assert.deepEqual(inserted.scene.ids.L1.slice(1), [ten, twenty, thirty])
   assert.deepEqual(inserted.beat.entering, [inserted.scene.ids.L1[0]])
   const removed = frameAt(s, 2)
-  assert.deepEqual(removed.scene.ids.L1, [inserted.scene.ids.L1[0], ten, thirty])
+  assert.deepEqual(removed.scene.ids.L1, [
+    inserted.scene.ids.L1[0],
+    ten,
+    thirty,
+  ])
   assert.deepEqual(removed.beat.exiting, [twenty])
 })
 
@@ -91,7 +99,9 @@ test("calls stack up, returns hand the value to the caller's frame", () => {
   assert.equal(frameAt(s, 1).program.frames.length, 2)
   const back = frameAt(s, 2)
   assert.equal(back.program.frames[0].got, 1)
-  assert.deepEqual(back.beat.flights, [{ from: "fn:f:frame:1", to: "fn:f:frame:0", label: "1" }])
+  assert.deepEqual(back.beat.flights, [
+    { from: "fn:f:frame:1", to: "fn:f:frame:0", label: "1" },
+  ])
   assert.deepEqual(frameAt(s, 3).beat.flights[0].to, "fn:f:out")
   const set = frameAt(s, 4).beat
   assert.deepEqual(set.flights, [{ from: "fn:f:out", to: "var:r", label: "2" }])
@@ -106,7 +116,13 @@ test("a loop copies each element into the loop variable, print flows to output",
   )
   const iter = frameAt(s, 1)
   const id = iter.scene.ids.L1[1]
-  assert.deepEqual(iter.beat.flights, [{ from: `el:${id}`, to: "var:n", label: "20" }])
+  assert.deepEqual(iter.beat.flights, [
+    { from: `el:${id}`, to: "var:n", label: "20" },
+  ])
   assert.deepEqual(frameAt(s, 2).beat.particles, ["list:L1->output"])
-  assert.deepEqual(frameAt(s, 2).beat.flights[0], { from: `el:${id}`, to: "output", label: "20" })
+  assert.deepEqual(frameAt(s, 2).beat.flights[0], {
+    from: `el:${id}`,
+    to: "output",
+    label: "20",
+  })
 })

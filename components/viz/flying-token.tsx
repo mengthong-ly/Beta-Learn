@@ -5,7 +5,7 @@ import { arc, motion } from "motion/react"
 
 import type { Flight } from "@/lib/viz/layout"
 
-import { EASE, useDur } from "./timing"
+import { EASE_IN_OUT, useDur } from "./timing"
 
 /**
  * A value in transit between two things in the world: an argument entering a function,
@@ -24,7 +24,7 @@ export function FlyingTokens({ flights }: { flights: Flight[] }) {
           animate={{ x: f.to.x, y: f.to.y, opacity: [0, 1, 1, 0] }}
           transition={{
             duration: dur(0.85),
-            ease: EASE,
+            ease: EASE_IN_OUT,
             path: arc({ strength: 0.35 }),
             opacity: { duration: dur(0.85), times: [0, 0.12, 0.82, 1] },
           }}

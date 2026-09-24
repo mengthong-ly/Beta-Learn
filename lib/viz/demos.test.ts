@@ -28,12 +28,19 @@ const run = (code: string) => {
 for (const demo of DEMOS) {
   test(`demo "${demo.id}" matches real Python`, () => {
     const lines = demo.code.split("\n").length
-    for (const st of demo.steps) assert.ok(st.line >= 1 && st.line <= lines, `line ${st.line} is in the code`)
+    for (const st of demo.steps)
+      assert.ok(
+        st.line >= 1 && st.line <= lines,
+        `line ${st.line} is in the code`
+      )
     const p = replay(demo.steps, demo.steps.length - 1)
     const real = run(demo.code)
     assert.deepEqual(p.output, real.out)
     const mine = Object.fromEntries(
-      Object.entries(p.globals).map(([k, b]) => [k, "ref" in b ? p.lists[b.ref] : b.val])
+      Object.entries(p.globals).map(([k, b]) => [
+        k,
+        "ref" in b ? p.lists[b.ref] : b.val,
+      ])
     )
     assert.deepEqual(mine, real.vars)
   })

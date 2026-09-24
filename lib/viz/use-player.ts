@@ -15,9 +15,23 @@ export function usePlayer(count: number) {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>(1)
 
-  const step = useCallback(() => setPos((p) => (p.index < count ? { index: p.index + 1, forward: true } : p)), [count])
-  const back = useCallback(() => setPos((p) => (p.index > 0 ? { index: p.index - 1, forward: false } : p)), [])
-  const seek = useCallback((index: number) => setPos((p) => ({ index, forward: index === p.index + 1 })), [])
+  const step = useCallback(
+    () =>
+      setPos((p) =>
+        p.index < count ? { index: p.index + 1, forward: true } : p
+      ),
+    [count]
+  )
+  const back = useCallback(
+    () =>
+      setPos((p) => (p.index > 0 ? { index: p.index - 1, forward: false } : p)),
+    []
+  )
+  const seek = useCallback(
+    (index: number) =>
+      setPos((p) => ({ index, forward: index === p.index + 1 })),
+    []
+  )
   const reset = useCallback(() => {
     setPlaying(false)
     setPos({ index: 0, forward: false })
@@ -31,14 +45,29 @@ export function usePlayer(count: number) {
 
   useEffect(() => {
     if (!playing || pos.index >= count) return
-    const t = setTimeout(() => {
-      step()
-      if (pos.index + 1 >= count) setPlaying(false)
-    }, (pos.index === 0 ? 350 : 1300) / speed)
+    const t = setTimeout(
+      () => {
+        step()
+        if (pos.index + 1 >= count) setPlaying(false)
+      },
+      (pos.index === 0 ? 350 : 1300) / speed
+    )
     return () => clearTimeout(t)
   }, [playing, pos.index, count, speed, step])
 
-  return { ...pos, count, playing, speed, setSpeed, step, back, seek, reset, play, pause }
+  return {
+    ...pos,
+    count,
+    playing,
+    speed,
+    setSpeed,
+    step,
+    back,
+    seek,
+    reset,
+    play,
+    pause,
+  }
 }
 
 export type Player = ReturnType<typeof usePlayer>

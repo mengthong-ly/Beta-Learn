@@ -20,7 +20,14 @@ export type VizEvent =
   | { type: "loop.iter"; array: string; index: number; variable: string }
   | { type: "loop.end"; array: string }
   /** then/otherwise: the code each branch runs, shown on the branch outlets */
-  | { type: "cond.eval"; id: string; expr: string; result: boolean; then: string; otherwise: string }
+  | {
+      type: "cond.eval"
+      id: string
+      expr: string
+      result: boolean
+      then: string
+      otherwise: string
+    }
   /** pushes a frame */
   | { type: "call"; fn: string; args: [string, Val][] }
   /** pops a frame; the value lands in the caller */

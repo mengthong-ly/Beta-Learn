@@ -6,7 +6,15 @@ import type { Edge, Node } from "@xyflow/react"
 
 import { framesOf, nodeOf, type Beat, type Snapshot } from "./beat.ts"
 import { formatVal, type Demo, type PipelineStage, type Val } from "./events.ts"
-import { boxBounds, project, topCenter, type Box, type P2, type P3, type PathKind } from "./iso.ts"
+import {
+  boxBounds,
+  project,
+  topCenter,
+  type Box,
+  type P2,
+  type P3,
+  type PathKind,
+} from "./iso.ts"
 
 export const BLOCK: Box = { w: 34, d: 34, h: 20 }
 export const SLOT = 54
@@ -17,15 +25,28 @@ const PAD = 14
 const PIN = 30
 
 /** A node's drawing: world (0,0,0) sits at `origin` inside width × height; anchors are node-local px. */
-export type Canvas = { width: number; height: number; origin: P2; anchors: Record<string, P2> }
+export type Canvas = {
+  width: number
+  height: number
+  origin: P2
+  anchors: Record<string, P2>
+}
 
-function fit(parts: { box: Box; at?: P3 }[], extra: Partial<Record<"top" | "right" | "bottom" | "left", number>> = {}) {
+function fit(
+  parts: { box: Box; at?: P3 }[],
+  extra: Partial<Record<"top" | "right" | "bottom" | "left", number>> = {}
+) {
   const b = parts.map((p) => boxBounds(p.box, p.at))
   const minX = Math.min(...b.map((x) => x.minX))
   const maxX = Math.max(...b.map((x) => x.maxX))
   const minY = Math.min(...b.map((x) => x.minY))
   const maxY = Math.max(...b.map((x) => x.maxY))
-  const [t, r, bo, l] = [extra.top ?? 0, extra.right ?? 0, extra.bottom ?? 0, extra.left ?? 0]
+  const [t, r, bo, l] = [
+    extra.top ?? 0,
+    extra.right ?? 0,
+    extra.bottom ?? 0,
+    extra.left ?? 0,
+  ]
   const origin = { x: -minX + PAD + l, y: -minY + PAD + t }
   return {
     width: Math.ceil(maxX - minX + 2 * PAD + l + r),
@@ -41,12 +62,26 @@ function fit(parts: { box: Box; at?: P3 }[], extra: Partial<Record<"top" | "righ
 
 /** A row of slots on a plate: the global scope and every list. */
 export function lane(capacity: number, title: string) {
-  const plate: Box = { w: Math.max(1, capacity) * SLOT + 12, d: BLOCK.d + 18, h: 6 }
-  const slot = (i: number): P3 => ({ x: 6 + i * SLOT + (SLOT - BLOCK.w) / 2, y: 9, z: plate.h })
-  const f = fit([{ box: plate }, { box: { ...BLOCK, h: BLOCK.h + LIFT + PIN }, at: slot(0) }], {
-    left: title.length * 7.5 + 12,
-    bottom: 26,
+  const plate: Box = {
+    w: Math.max(1, capacity) * SLOT + 12,
+    d: BLOCK.d + 18,
+    h: 6,
+  }
+  const slot = (i: number): P3 => ({
+    x: 6 + i * SLOT + (SLOT - BLOCK.w) / 2,
+    y: 9,
+    z: plate.h,
   })
+  const f = fit(
+    [
+      { box: plate },
+      { box: { ...BLOCK, h: BLOCK.h + LIFT + PIN }, at: slot(0) },
+    ],
+    {
+      left: title.length * 7.5 + 12,
+      bottom: 26,
+    }
+  )
   const anchors: Record<string, P2> = {
     in: f.at({ x: 0, y: plate.d, z: plate.h / 2 }),
     out: f.at({ x: plate.w, y: 0, z: plate.h / 2 }),
@@ -64,9 +99,16 @@ const FRAME_GAP = 10
 
 /** A function: a machine block with its call frames stacking up on top. */
 export function machine(maxDepth: number) {
-  const frame = (i: number): P3 => ({ x: 10, y: 9, z: MACHINE.h + 4 + i * (FRAME.h + FRAME_GAP) })
+  const frame = (i: number): P3 => ({
+    x: 10,
+    y: 9,
+    z: MACHINE.h + 4 + i * (FRAME.h + FRAME_GAP),
+  })
   const stack: Box = { ...FRAME, h: 4 + maxDepth * (FRAME.h + FRAME_GAP) + PIN }
-  const f = fit([{ box: MACHINE }, { box: stack, at: { x: 10, y: 9, z: MACHINE.h } }], { right: 130, bottom: 10 })
+  const f = fit(
+    [{ box: MACHINE }, { box: stack, at: { x: 10, y: 9, z: MACHINE.h } }],
+    { right: 130, bottom: 10 }
+  )
   const anchors: Record<string, P2> = {
     in: f.at({ x: 0, y: MACHINE.d, z: MACHINE.h / 2 }),
     out: f.at({ x: MACHINE.w, y: 0, z: MACHINE.h / 2 }),
@@ -111,7 +153,12 @@ export function stage(lines: number) {
   const f = fit([{ box: STAGE }])
   const cardH = CARD.head + lines * CARD.line + 8
   const top = topCenter(STAGE)
-  const card = { x: f.width - PAD + 12, y: PAD, width: CARD.width, height: cardH }
+  const card = {
+    x: f.width - PAD + 12,
+    y: PAD,
+    width: CARD.width,
+    height: cardH,
+  }
   return {
     ...f,
     width: f.width + 12 + CARD.width,
@@ -127,7 +174,12 @@ export function stage(lines: number) {
 export const CONSOLE = { width: 196, head: 28, line: 18 }
 export function outputCard(lines: number): Canvas {
   const height = CONSOLE.head + Math.max(1, lines) * CONSOLE.line + 12
-  return { width: CONSOLE.width, height, origin: { x: 0, y: 0 }, anchors: { in: { x: CONSOLE.width / 2, y: 0 } } }
+  return {
+    width: CONSOLE.width,
+    height,
+    origin: { x: 0, y: 0 },
+    anchors: { in: { x: CONSOLE.width / 2, y: 0 } },
+  }
 }
 
 // ---------- node data (what each concept visualizer receives) ----------
@@ -151,9 +203,24 @@ export type ArrayData = {
   shift: "insert" | "remove" | null
 }
 export type GateData = { expr: string; result: boolean | null }
-export type BranchData = { code: string; label: "True" | "False"; state: "idle" | "taken" | "skipped" }
-export type FnData = { name: string; maxDepth: number; frames: { id: string; label: string; got?: Val; active: boolean }[]; busy: boolean }
-export type StageData = { stage: PipelineStage; title: string; lines: number; payload?: string[]; state: "idle" | "active" | "done" }
+export type BranchData = {
+  code: string
+  label: "True" | "False"
+  state: "idle" | "taken" | "skipped"
+}
+export type FnData = {
+  name: string
+  maxDepth: number
+  frames: { id: string; label: string; got?: Val; active: boolean }[]
+  busy: boolean
+}
+export type StageData = {
+  stage: PipelineStage
+  title: string
+  lines: number
+  payload?: string[]
+  state: "idle" | "active" | "done"
+}
 export type OutputData = { lines: string[]; capacity: number; active: boolean }
 
 export type VizNode =
@@ -186,8 +253,22 @@ export const STAGE_TITLES: Record<PipelineStage, string> = {
 }
 const STAGES = Object.keys(STAGE_TITLES) as PipelineStage[]
 
-type Placed = { id: string; type: VizNode["type"]; x: number; y: number; canvas: Canvas }
-type EdgeSpec = { id: string; source: string; sourceHandle: string; target: string; targetHandle: string; kind: PathKind; look: EdgeData["look"] }
+type Placed = {
+  id: string
+  type: VizNode["type"]
+  x: number
+  y: number
+  canvas: Canvas
+}
+type EdgeSpec = {
+  id: string
+  source: string
+  sourceHandle: string
+  target: string
+  targetHandle: string
+  kind: PathKind
+  look: EdgeData["look"]
+}
 
 export type Layout = ReturnType<typeof layoutOf>
 
@@ -198,21 +279,36 @@ export function layoutOf(demo: Demo) {
 
   // ----- the cast: every entity that exists at any point -----
   const scopeNames: string[] = []
-  const lists = new Map<string, { name: string; capacity: number; loop: boolean }>()
+  const lists = new Map<
+    string,
+    { name: string; capacity: number; loop: boolean }
+  >()
   const fns = new Map<string, number>()
-  const conds = new Map<string, { expr: string; then: string; otherwise: string }>()
+  const conds = new Map<
+    string,
+    { expr: string; then: string; otherwise: string }
+  >()
   let outputLines = 0
   const printFrom = new Set<string>()
   demo.steps.forEach((st, i) => {
     const ev = st.event
     const p = frames[i + 1].program
-    for (const name of Object.keys(p.globals)) if (!scopeNames.includes(name)) scopeNames.push(name)
+    for (const name of Object.keys(p.globals))
+      if (!scopeNames.includes(name)) scopeNames.push(name)
     for (const [id, items] of Object.entries(p.lists)) {
-      const name = Object.keys(p.globals).find((n) => (p.globals[n] as { ref?: string }).ref === id) ?? id
+      const name =
+        Object.keys(p.globals).find(
+          (n) => (p.globals[n] as { ref?: string }).ref === id
+        ) ?? id
       const known = lists.get(id)
-      lists.set(id, { name, capacity: Math.max(known?.capacity ?? 0, items.length), loop: known?.loop || ev.type === "loop.iter" })
+      lists.set(id, {
+        name,
+        capacity: Math.max(known?.capacity ?? 0, items.length),
+        loop: known?.loop || ev.type === "loop.iter",
+      })
     }
-    if (ev.type === "call") fns.set(ev.fn, Math.max(fns.get(ev.fn) ?? 0, p.frames.length))
+    if (ev.type === "call")
+      fns.set(ev.fn, Math.max(fns.get(ev.fn) ?? 0, p.frames.length))
     if (ev.type === "cond.eval") conds.set(ev.id, ev)
     if (ev.type === "print") {
       outputLines = p.output.length
@@ -225,7 +321,9 @@ export function layoutOf(demo: Demo) {
   // ----- canvases -----
   const placed: Placed[] = []
   const scope = lane(scopeNames.length, "Global")
-  const listCanvas = new Map([...lists].map(([id, l]) => [id, lane(l.capacity, l.name)]))
+  const listCanvas = new Map(
+    [...lists].map(([id, l]) => [id, lane(l.capacity, l.name)])
+  )
   const gateCanvas = gate()
   const branchCanvas = branch()
   const outCanvas = outputCard(outputLines)
@@ -240,17 +338,55 @@ export function layoutOf(demo: Demo) {
       y += c.height + 18
     })
     const run = placed[placed.length - 1]
-    placed.push({ id: "scope", type: "scope", x: right() + 40, y: run.y - 40, canvas: scope })
+    placed.push({
+      id: "scope",
+      type: "scope",
+      x: right() + 40,
+      y: run.y - 40,
+      canvas: scope,
+    })
   } else {
     placed.push({ id: "scope", type: "scope", x: 0, y: 0, canvas: scope })
-    for (const [id, c] of listCanvas) placed.push({ id: `list:${id}`, type: "array", x: 30, y: bottom() + 24, canvas: c })
+    for (const [id, c] of listCanvas)
+      placed.push({
+        id: `list:${id}`,
+        type: "array",
+        x: 30,
+        y: bottom() + 24,
+        canvas: c,
+      })
     const x0 = right() + 56
-    for (const [name, depth] of fns) placed.push({ id: `fn:${name}`, type: "fn", x: x0, y: 0, canvas: machine(depth) })
+    for (const [name, depth] of fns)
+      placed.push({
+        id: `fn:${name}`,
+        type: "fn",
+        x: x0,
+        y: 0,
+        canvas: machine(depth),
+      })
     for (const id of conds.keys()) {
-      placed.push({ id: `gate:${id}`, type: "gate", x: x0, y: 0, canvas: gateCanvas })
+      placed.push({
+        id: `gate:${id}`,
+        type: "gate",
+        x: x0,
+        y: 0,
+        canvas: gateCanvas,
+      })
       const y = gateCanvas.height + 40
-      placed.push({ id: `branch:${id}:true`, type: "branch", x: x0 - 40, y, canvas: branchCanvas })
-      placed.push({ id: `branch:${id}:false`, type: "branch", x: x0 + branchCanvas.width - 10, y: y + 30, canvas: branchCanvas })
+      placed.push({
+        id: `branch:${id}:true`,
+        type: "branch",
+        x: x0 - 40,
+        y,
+        canvas: branchCanvas,
+      })
+      placed.push({
+        id: `branch:${id}:false`,
+        type: "branch",
+        x: x0 + branchCanvas.width - 10,
+        y: y + 30,
+        canvas: branchCanvas,
+      })
     }
   }
   // Output sits below the world, under the first node that prints, so prints travel down into it.
@@ -258,37 +394,90 @@ export function layoutOf(demo: Demo) {
     const s0 = placed.find((p) => p.id === "scope")!
     placed.push(
       pipeline
-        ? { id: "output", type: "output", x: s0.x + 20, y: s0.y + s0.canvas.height + 36, canvas: outCanvas }
-        : { id: "output", type: "output", x: placed.find((p) => printFrom.has(p.id))?.x ?? 0, y: bottom() + 44, canvas: outCanvas }
+        ? {
+            id: "output",
+            type: "output",
+            x: s0.x + 20,
+            y: s0.y + s0.canvas.height + 36,
+            canvas: outCanvas,
+          }
+        : {
+            id: "output",
+            type: "output",
+            x: placed.find((p) => printFrom.has(p.id))?.x ?? 0,
+            y: bottom() + 44,
+            canvas: outCanvas,
+          }
     )
   }
 
   // ----- edges -----
   const edges: EdgeSpec[] = []
-  const edge = (source: string, sourceHandle: string, target: string, targetHandle: string, kind: PathKind, look: EdgeData["look"] = "flow", id = `${source}->${target}`) =>
+  const edge = (
+    source: string,
+    sourceHandle: string,
+    target: string,
+    targetHandle: string,
+    kind: PathKind,
+    look: EdgeData["look"] = "flow",
+    id = `${source}->${target}`
+  ) =>
     edges.push({ id, source, sourceHandle, target, targetHandle, kind, look })
-  for (const [id, l] of lists) edge("scope", `slot:${scopeNames.indexOf(l.name)}`, `list:${id}`, "in", "curve", "reference", `ref:${l.name}`)
-  for (const name of fns.keys()) edge("scope", "out", `fn:${name}`, "in", "hcurve")
+  for (const [id, l] of lists)
+    edge(
+      "scope",
+      `slot:${scopeNames.indexOf(l.name)}`,
+      `list:${id}`,
+      "in",
+      "curve",
+      "reference",
+      `ref:${l.name}`
+    )
+  for (const name of fns.keys())
+    edge("scope", "out", `fn:${name}`, "in", "hcurve")
   for (const id of conds.keys()) {
     edge("scope", "out", `gate:${id}`, "in", "hcurve")
     edge(`gate:${id}`, "true", `branch:${id}:true`, "in", "curve", "branch")
     edge(`gate:${id}`, "false", `branch:${id}:false`, "in", "curve", "branch")
   }
   if (pipeline) {
-    STAGES.slice(1).forEach((st, i) => edge(`stage:${STAGES[i]}`, "out", `stage:${st}`, "in", "curve"))
+    STAGES.slice(1).forEach((st, i) =>
+      edge(`stage:${STAGES[i]}`, "out", `stage:${st}`, "in", "curve")
+    )
     edge("stage:run", "out", "scope", "in", "curve")
   }
-  for (const src of printFrom) if (placed.some((p) => p.id === src)) edge(src, "out", "output", "in", "curve")
+  for (const src of printFrom)
+    if (placed.some((p) => p.id === src))
+      edge(src, "out", "output", "in", "curve")
 
-  return { demo, frames, placed, edges, scopeNames, lists, fns, conds, outputLines }
+  return {
+    demo,
+    frames,
+    placed,
+    edges,
+    scopeNames,
+    lists,
+    fns,
+    conds,
+    outputLines,
+  }
 }
 
 // ---------- per step ----------
 
 const varState = (name: string, f: Snapshot): ItemState =>
-  f.beat.changed.includes(`var:${name}`) ? "changed" : f.scene.focus?.kind === "var" && f.scene.focus.name === name ? "active" : "idle"
+  f.beat.changed.includes(`var:${name}`)
+    ? "changed"
+    : f.scene.focus?.kind === "var" && f.scene.focus.name === name
+      ? "active"
+      : "idle"
 
-function dataFor(n: Placed, L: Layout, f: Snapshot, prev: Snapshot): VizNode["data"] {
+function dataFor(
+  n: Placed,
+  L: Layout,
+  f: Snapshot,
+  prev: Snapshot
+): VizNode["data"] {
   const { program: p, scene: s } = f
   const focus = s.focus
   const [, key] = n.id.split(":")
@@ -299,25 +488,40 @@ function dataFor(n: Placed, L: Layout, f: Snapshot, prev: Snapshot): VizNode["da
         capacity: L.scopeNames.length,
         vars: L.scopeNames.map((name) => {
           const b = p.globals[name]
-          return { name, val: b && "val" in b ? b.val : undefined, ref: !!b && "ref" in b, state: b ? varState(name, f) : "idle" }
+          return {
+            name,
+            val: b && "val" in b ? b.val : undefined,
+            ref: !!b && "ref" in b,
+            state: b ? varState(name, f) : "idle",
+          }
         }),
       } satisfies ScopeData
     case "array": {
       const meta = L.lists.get(key)!
       const items = p.lists[key] ?? []
-      const here = (focus?.kind === "element" || focus?.kind === "list") && focus.list === key
+      const here =
+        (focus?.kind === "element" || focus?.kind === "list") &&
+        focus.list === key
       return {
         name: meta.name,
         capacity: meta.capacity,
         exists: key in p.lists,
         items: items.map((val, i) => {
           const id = s.ids[key][i]
-          const state: ItemState = f.beat.changed.includes(id) ? "changed" : here && focus.kind === "element" && focus.index === i ? "active" : "idle"
+          const state: ItemState = f.beat.changed.includes(id)
+            ? "changed"
+            : here && focus.kind === "element" && focus.index === i
+              ? "active"
+              : "idle"
           return { id, val, state, entering: f.beat.entering.includes(id) }
         }),
         cursor: here && focus.kind === "element" ? focus.index : null,
         loop: meta.loop,
-        done: here && focus.kind === "list" && meta.loop && f.step?.event.type === "loop.end",
+        done:
+          here &&
+          focus.kind === "list" &&
+          meta.loop &&
+          f.step?.event.type === "loop.end",
         shift: f.beat.entering.some((id) => s.ids[key]?.includes(id))
           ? "insert"
           : f.beat.exiting.some((id) => prev.scene.ids[key]?.includes(id))
@@ -327,12 +531,16 @@ function dataFor(n: Placed, L: Layout, f: Snapshot, prev: Snapshot): VizNode["da
     }
     case "gate": {
       const c = L.conds.get(key)!
-      return { expr: c.expr, result: p.cond?.id === key ? p.cond.result : null } satisfies GateData
+      return {
+        expr: c.expr,
+        result: p.cond?.id === key ? p.cond.result : null,
+      } satisfies GateData
     }
     case "branch": {
       const [, id, which] = n.id.split(":")
       const c = L.conds.get(id)!
-      const taken = p.cond?.id === id ? p.cond.result === (which === "true") : null
+      const taken =
+        p.cond?.id === id ? p.cond.result === (which === "true") : null
       return {
         code: which === "true" ? c.then : c.otherwise,
         label: which === "true" ? "True" : "False",
@@ -340,7 +548,9 @@ function dataFor(n: Placed, L: Layout, f: Snapshot, prev: Snapshot): VizNode["da
       } satisfies BranchData
     }
     case "fn": {
-      const mine = p.frames.map((fr, i) => ({ fr, i })).filter(({ fr }) => fr.fn === key)
+      const mine = p.frames
+        .map((fr, i) => ({ fr, i }))
+        .filter(({ fr }) => fr.fn === key)
       return {
         name: key,
         maxDepth: L.fns.get(key)!,
@@ -355,28 +565,46 @@ function dataFor(n: Placed, L: Layout, f: Snapshot, prev: Snapshot): VizNode["da
     }
     case "stage": {
       const st = key as PipelineStage
-      const reached = STAGES.indexOf(st) <= STAGES.indexOf(p.stage ?? ("" as PipelineStage)) && !!p.stage
+      const reached =
+        STAGES.indexOf(st) <=
+          STAGES.indexOf(p.stage ?? ("" as PipelineStage)) && !!p.stage
       return {
         stage: st,
         title: STAGE_TITLES[st],
         lines: L.frames.at(-1)!.program.payloads[st]?.length ?? 1,
         payload: p.payloads[st],
-        state: focus?.kind === "stage" && focus.stage === st ? "active" : reached ? "done" : "idle",
+        state:
+          focus?.kind === "stage" && focus.stage === st
+            ? "active"
+            : reached
+              ? "done"
+              : "idle",
       } satisfies StageData
     }
     case "output":
-      return { lines: p.output, capacity: L.outputLines, active: focus?.kind === "output" } satisfies OutputData
+      return {
+        lines: p.output,
+        capacity: L.outputLines,
+        active: focus?.kind === "output",
+      } satisfies OutputData
   }
 }
 
 /** Resolve a beat anchor (`var:x`, `el:e3`, `fn:f:frame:1`, a node id…) to flow coordinates. */
-function anchor(L: Layout, ref: string, prev: Snapshot, next: Snapshot, role: "from" | "to"): P2 | undefined {
+function anchor(
+  L: Layout,
+  ref: string,
+  prev: Snapshot,
+  next: Snapshot,
+  role: "from" | "to"
+): P2 | undefined {
   const node = (id: string) => L.placed.find((p) => p.id === id)
   const pt = (n: Placed | undefined, a: string) => {
     const q = n?.canvas.anchors[a]
     return q && { x: n!.x + q.x, y: n!.y + q.y }
   }
-  if (ref.startsWith("var:")) return pt(node("scope"), `slot:${L.scopeNames.indexOf(ref.slice(4))}`)
+  if (ref.startsWith("var:"))
+    return pt(node("scope"), `slot:${L.scopeNames.indexOf(ref.slice(4))}`)
   if (ref.startsWith("el:")) {
     const id = ref.slice(3)
     for (const f of [next, prev])
@@ -398,7 +626,9 @@ function anchor(L: Layout, ref: string, prev: Snapshot, next: Snapshot, role: "f
 export function sceneAt(L: Layout, i: number, forward: boolean) {
   const f = L.frames[i]
   const prev = L.frames[Math.max(0, i - 1)]
-  const beat: Beat = forward ? f.beat : { ...f.beat, flights: [], particles: [] }
+  const beat: Beat = forward
+    ? f.beat
+    : { ...f.beat, flights: [], particles: [] }
 
   const nodes = L.placed.map(
     (n) =>
@@ -419,7 +649,10 @@ export function sceneAt(L: Layout, i: number, forward: boolean) {
     return true
   }
   const edges: VizEdge[] = L.edges.map((e) => {
-    const taken = e.look === "branch" && f.program.cond && e.target === `branch:${f.program.cond.id}:${f.program.cond.result}`
+    const taken =
+      e.look === "branch" &&
+      f.program.cond &&
+      e.target === `branch:${f.program.cond.id}:${f.program.cond.result}`
     const pulsing = beat.particles.includes(e.id)
     // Print connections only exist while a value travels to the output: drawn on top, then gone.
     const transient = e.target === "output"
@@ -436,7 +669,8 @@ export function sceneAt(L: Layout, i: number, forward: boolean) {
         kind: e.kind,
         look: e.look,
         active: pulsing || !!taken,
-        hidden: !exists(e.source) || !exists(e.target) || (transient && !pulsing),
+        hidden:
+          !exists(e.source) || !exists(e.target) || (transient && !pulsing),
         pulse: pulsing ? i : undefined,
       },
     }

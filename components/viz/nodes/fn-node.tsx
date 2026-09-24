@@ -32,23 +32,41 @@ export function FnNode({ data }: NodeProps<Node<FnData, "fn">>) {
       <AnimatePresence initial={false}>
         {data.frames.map((fr, i) => {
           const p = project(g.frame(i))
-          const side = project({ x: g.frame(i).x + FRAME.w, y: g.frame(i).y, z: (g.frame(i).z ?? 0) + FRAME.h / 2 })
+          const side = project({
+            x: g.frame(i).x + FRAME.w,
+            y: g.frame(i).y,
+            z: (g.frame(i).z ?? 0) + FRAME.h / 2,
+          })
           return (
             <motion.g
               key={fr.id}
               initial={{ opacity: 0, y: -44 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -36, transition: { duration: dur(0.35), ease: EASE } }}
+              exit={{
+                opacity: 0,
+                y: -36,
+                transition: { duration: dur(0.35), ease: EASE },
+              }}
               transition={{ duration: dur(0.5), ease: EASE }}
             >
               <g transform={`translate(${p.x},${p.y})`}>
                 <IsoBox box={FRAME} tone={fr.active ? "accent" : "neutral"} />
               </g>
-              <Tag at={{ x: side.x + 10, y: side.y }} anchor="start" tone={fr.active ? "accent" : "strong"} mono>
+              <Tag
+                at={{ x: side.x + 10, y: side.y }}
+                anchor="start"
+                tone={fr.active ? "accent" : "strong"}
+                mono
+              >
                 {fr.label}
               </Tag>
               {fr.got !== undefined && (
-                <Tag at={{ x: side.x + 10, y: side.y + 14 }} anchor="start" mono size={10}>
+                <Tag
+                  at={{ x: side.x + 10, y: side.y + 14 }}
+                  anchor="start"
+                  mono
+                  size={10}
+                >
                   {`got ${formatVal(fr.got)}`}
                 </Tag>
               )}

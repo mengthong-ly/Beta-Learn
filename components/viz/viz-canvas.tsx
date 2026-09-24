@@ -4,7 +4,6 @@ import "@xyflow/react/dist/base.css"
 
 import { useMemo } from "react"
 import { ConnectionMode, Controls, ReactFlow } from "@xyflow/react"
-import { MotionConfig } from "motion/react"
 
 import { sceneAt, type Layout } from "@/lib/viz/layout"
 
@@ -18,7 +17,15 @@ import { OutputNode, StageNode } from "./nodes/pipeline-nodes"
 import { ScopeNode } from "./nodes/scope-node"
 import { SpeedContext } from "./timing"
 
-const nodeTypes = { scope: ScopeNode, array: ArrayNode, gate: GateNode, branch: BranchNode, fn: FnNode, stage: StageNode, output: OutputNode }
+const nodeTypes = {
+  scope: ScopeNode,
+  array: ArrayNode,
+  gate: GateNode,
+  branch: BranchNode,
+  fn: FnNode,
+  stage: StageNode,
+  output: OutputNode,
+}
 const edgeTypes = { iso: IsoEdge }
 
 /**
@@ -27,35 +34,46 @@ const edgeTypes = { iso: IsoEdge }
  * Remount it (key) per demo so fitView frames the new world. Colours come from the page's own
  * tokens (app/globals.css --iso-*), so light/dark follows the app theme without colorMode.
  */
-export function VizCanvas({ layout, index, forward, speed }: { layout: Layout; index: number; forward: boolean; speed: number }) {
-  const { nodes, edges, flights } = useMemo(() => sceneAt(layout, index, forward), [layout, index, forward])
+export function VizCanvas({
+  layout,
+  index,
+  forward,
+  speed,
+}: {
+  layout: Layout
+  index: number
+  forward: boolean
+  speed: number
+}) {
+  const { nodes, edges, flights } = useMemo(
+    () => sceneAt(layout, index, forward),
+    [layout, index, forward]
+  )
   return (
     <SpeedContext value={speed}>
-      <MotionConfig reducedMotion="user">
-        <ReactFlow
-          className="viz-flow"
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          connectionMode={ConnectionMode.Loose}
-          fitView
-          fitViewOptions={{ padding: 0.12 }}
-          minZoom={0.3}
-          maxZoom={2}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          nodesFocusable={false}
-          edgesFocusable={false}
-          elementsSelectable={false}
-          zoomOnScroll={false}
-          preventScrolling={false}
-        >
-          <IsoGrid />
-          <FlyingTokens flights={flights} />
-          <Controls showInteractive={false} position="top-right" />
-        </ReactFlow>
-      </MotionConfig>
+      <ReactFlow
+        className="viz-flow"
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Loose}
+        fitView
+        fitViewOptions={{ padding: 0.12 }}
+        minZoom={0.3}
+        maxZoom={2}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        nodesFocusable={false}
+        edgesFocusable={false}
+        elementsSelectable={false}
+        zoomOnScroll={false}
+        preventScrolling={false}
+      >
+        <IsoGrid />
+        <FlyingTokens flights={flights} />
+        <Controls showInteractive={false} position="top-right" />
+      </ReactFlow>
     </SpeedContext>
   )
 }

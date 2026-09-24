@@ -19,7 +19,13 @@ export type Beat = {
   particles: string[]
 }
 
-export const QUIET: Beat = { entering: [], exiting: [], changed: [], flights: [], particles: [] }
+export const QUIET: Beat = {
+  entering: [],
+  exiting: [],
+  changed: [],
+  flights: [],
+  particles: [],
+}
 
 /** The React Flow node a focus lives in. */
 export function nodeOf(f: Focus | null, p: Program): string | undefined {
@@ -52,13 +58,19 @@ function anchorOf(f: Focus | null, s: Scene, p: Program): string | undefined {
     case "element":
       return `el:${s.ids[f.list]?.[f.index]}`
     case "fn":
-      return f.depth === 0 ? `fn:${f.fn}:out` : `fn:${f.fn}:frame:${f.depth - 1}`
+      return f.depth === 0
+        ? `fn:${f.fn}:out`
+        : `fn:${f.fn}:frame:${f.depth - 1}`
     default:
       return nodeOf(f, p)
   }
 }
 
-function beatFor(ev: VizEvent, prev: { p: Program; s: Scene }, next: { p: Program; s: Scene }): Beat {
+function beatFor(
+  ev: VizEvent,
+  prev: { p: Program; s: Scene },
+  next: { p: Program; s: Scene }
+): Beat {
   const all = (s: Scene) => [...Object.values(s.ids).flat(), ...s.frames]
   const before = new Set(all(prev.s))
   const after = new Set(all(next.s))
@@ -76,7 +88,12 @@ function beatFor(ev: VizEvent, prev: { p: Program; s: Scene }, next: { p: Progra
     case "var.set": {
       beat.changed.push(`var:${ev.name}`)
       const f = prev.s.focus
-      if (f?.kind === "fn" && f.depth === 0) beat.flights.push({ from: `fn:${f.fn}:out`, to: `var:${ev.name}`, label: formatVal(ev.value) })
+      if (f?.kind === "fn" && f.depth === 0)
+        beat.flights.push({
+          from: `fn:${f.fn}:out`,
+          to: `var:${ev.name}`,
+          label: formatVal(ev.value),
+        })
       if (from && from !== "scope") beat.particles.push(`${from}->scope`)
       break
     }
@@ -90,13 +107,21 @@ function beatFor(ev: VizEvent, prev: { p: Program; s: Scene }, next: { p: Progra
       if (ev.into) {
         const b = prev.p.globals[ev.name] as { ref: string }
         beat.changed.push(`var:${ev.into}`)
-        beat.flights.push({ from: el(b.ref, ev.index), to: `var:${ev.into}`, label: formatVal(prev.p.lists[b.ref][ev.index]) })
+        beat.flights.push({
+          from: el(b.ref, ev.index),
+          to: `var:${ev.into}`,
+          label: formatVal(prev.p.lists[b.ref][ev.index]),
+        })
       }
       break
     case "loop.iter": {
       const b = prev.p.globals[ev.array] as { ref: string }
       beat.changed.push(`var:${ev.variable}`)
-      beat.flights.push({ from: el(b.ref, ev.index), to: `var:${ev.variable}`, label: formatVal(prev.p.lists[b.ref][ev.index]) })
+      beat.flights.push({
+        from: el(b.ref, ev.index),
+        to: `var:${ev.variable}`,
+        label: formatVal(prev.p.lists[b.ref][ev.index]),
+      })
       break
     }
     case "cond.eval":
@@ -104,19 +129,34 @@ function beatFor(ev: VizEvent, prev: { p: Program; s: Scene }, next: { p: Progra
       break
     case "call": {
       const depth = next.p.frames.length
-      const caller = depth > 1 ? `fn:${prev.p.frames[depth - 2].fn}:frame:${depth - 2}` : "scope"
-      beat.flights.push({ from: caller, to: `fn:${ev.fn}:frame:${depth - 1}`, label: ev.args.map(([, v]) => formatVal(v)).join(", ") })
+      const caller =
+        depth > 1
+          ? `fn:${prev.p.frames[depth - 2].fn}:frame:${depth - 2}`
+          : "scope"
+      beat.flights.push({
+        from: caller,
+        to: `fn:${ev.fn}:frame:${depth - 1}`,
+        label: ev.args.map(([, v]) => formatVal(v)).join(", "),
+      })
       if (depth === 1) beat.particles.push(`scope->fn:${ev.fn}`)
       break
     }
     case "return": {
       const depth = prev.p.frames.length
-      const to = depth > 1 ? `fn:${prev.p.frames[depth - 2].fn}:frame:${depth - 2}` : `fn:${ev.fn}:out`
-      beat.flights.push({ from: `fn:${ev.fn}:frame:${depth - 1}`, to, label: formatVal(ev.value) })
+      const to =
+        depth > 1
+          ? `fn:${prev.p.frames[depth - 2].fn}:frame:${depth - 2}`
+          : `fn:${ev.fn}:out`
+      beat.flights.push({
+        from: `fn:${ev.fn}:frame:${depth - 1}`,
+        to,
+        label: formatVal(ev.value),
+      })
       break
     }
     case "pipeline.stage":
-      if (from?.startsWith("stage:")) beat.particles.push(`${from}->stage:${ev.stage}`)
+      if (from?.startsWith("stage:"))
+        beat.particles.push(`${from}->stage:${ev.stage}`)
       break
     case "print": {
       const a = anchorOf(prev.s.focus, prev.s, prev.p)
@@ -128,7 +168,12 @@ function beatFor(ev: VizEvent, prev: { p: Program; s: Scene }, next: { p: Progra
   return beat
 }
 
-export type Snapshot = { program: Program; scene: Scene; beat: Beat; step?: Step }
+export type Snapshot = {
+  program: Program
+  scene: Scene
+  beat: Beat
+  step?: Step
+}
 
 /** Every frame of a demo in one fold: [0] is before the first step, [i + 1] is after step i. */
 export function framesOf(steps: Step[]): Snapshot[] {
@@ -137,10 +182,16 @@ export function framesOf(steps: Step[]): Snapshot[] {
     const { program: p, scene: s } = out[out.length - 1]
     const np = apply(p, step.event)
     const ns = reduceScene(s, step.event, p, np)
-    out.push({ program: np, scene: ns, beat: beatFor(step.event, { p, s }, { p: np, s: ns }), step })
+    out.push({
+      program: np,
+      scene: ns,
+      beat: beatFor(step.event, { p, s }, { p: np, s: ns }),
+      step,
+    })
   }
   return out
 }
 
 /** Everything the renderer needs for step i (i = -1: before the first step). */
-export const frameAt = (steps: Step[], i: number): Snapshot => framesOf(steps.slice(0, i + 1))[i + 1]
+export const frameAt = (steps: Step[], i: number): Snapshot =>
+  framesOf(steps.slice(0, i + 1))[i + 1]
