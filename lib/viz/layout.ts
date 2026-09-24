@@ -5,7 +5,7 @@
 import type { Edge, Node } from "@xyflow/react"
 
 import { framesOf, nodeOf, type Beat, type Snapshot } from "./beat.ts"
-import { argLabel, type Demo, type PipelineStage, type Val } from "./events.ts"
+import { argLabel, type PipelineStage, type Step, type Val } from "./events.ts"
 import {
   boxBounds,
   project,
@@ -15,6 +15,7 @@ import {
   type P3,
   type PathKind,
 } from "./iso.ts"
+import type { Binding, Frame, Program } from "./program.ts"
 
 export const BLOCK: Box = { w: 34, d: 34, h: 20 }
 export const SLOT = 54
@@ -252,6 +253,9 @@ export const STAGE_TITLES: Record<PipelineStage, string> = {
   run: "Interpreter",
 }
 const STAGES = Object.keys(STAGE_TITLES) as PipelineStage[]
+/** A big program still has to fit on screen: the rest are counted, not drawn. */
+const MAX_VARS = 12
+const MAX_LISTS = 6
 
 type Placed = {
   id: string
@@ -268,17 +272,20 @@ type EdgeSpec = {
   targetHandle: string
   kind: PathKind
   look: EdgeData["look"]
+  /** a reference edge: only drawn while `name` refers to `list` */
+  bind?: { name: string; list: string }
 }
 
 export type Layout = ReturnType<typeof layoutOf>
 
-/** Everything about a demo's world that doesn't change between steps. */
-export function layoutOf(demo: Demo) {
-  const frames = framesOf(demo.steps)
+/** Everything about a world that doesn't change between steps. */
+export function layoutOf(steps: Step[]) {
+  const frames = framesOf(steps)
   const last = frames[frames.length - 1].program
 
   // ----- the cast: every entity that exists at any point -----
   const scopeNames: string[] = []
+  const bindings = new Set<string>() // `${name}:${listId}`: every name → list reference ever made
   const lists = new Map<
     string,
     { name: string; capacity: number; loop: boolean }
@@ -290,25 +297,36 @@ export function layoutOf(demo: Demo) {
   >()
   let outputLines = 0
   const printFrom = new Set<string>()
-  demo.steps.forEach((st, i) => {
+  steps.forEach((st, i) => {
     const ev = st.event
     const p = frames[i + 1].program
     for (const name of Object.keys(p.globals))
       if (!scopeNames.includes(name)) scopeNames.push(name)
     for (const [id, items] of Object.entries(p.lists)) {
+      const holds = (b: Binding) => "ref" in b && b.ref === id
       const name =
-        Object.keys(p.globals).find(
-          (n) => (p.globals[n] as { ref?: string }).ref === id
-        ) ?? id
+        Object.keys(p.globals).find((n) => holds(p.globals[n])) ??
+        p.frames
+          .flatMap((f) => Object.entries(f.locals))
+          .find(([, b]) => holds(b))?.[0] ??
+        id
       const known = lists.get(id)
       lists.set(id, {
-        name,
+        name: known?.name ?? name,
         capacity: Math.max(known?.capacity ?? 0, items.length),
         loop: known?.loop || ev.type === "loop.iter",
       })
     }
+    for (const [name, b] of Object.entries(p.globals))
+      if ("ref" in b) bindings.add(`${name}:${b.ref}`)
     if (ev.type === "call")
-      fns.set(ev.fn, Math.max(fns.get(ev.fn) ?? 0, p.frames.length))
+      fns.set(
+        ev.fn,
+        Math.max(
+          fns.get(ev.fn) ?? 0,
+          p.frames.filter((f) => f.fn === ev.fn).length
+        )
+      )
     if (ev.type === "cond.eval") conds.set(ev.id, ev)
     if (ev.type === "print") {
       outputLines = p.output.length
@@ -316,13 +334,22 @@ export function layoutOf(demo: Demo) {
       if (src) printFrom.add(src)
     }
   })
-  const pipeline = demo.steps.some((s) => s.event.type === "pipeline.stage")
+  const pipeline = steps.some((s) => s.event.type === "pipeline.stage")
+  const hidden = {
+    vars: Math.max(0, scopeNames.length - MAX_VARS),
+    lists: Math.max(0, lists.size - MAX_LISTS),
+  }
+  scopeNames.splice(MAX_VARS)
+  const shownLists = [...lists.keys()].slice(0, MAX_LISTS)
 
   // ----- canvases -----
   const placed: Placed[] = []
   const scope = lane(scopeNames.length, "Global")
   const listCanvas = new Map(
-    [...lists].map(([id, l]) => [id, lane(l.capacity, l.name)])
+    shownLists.map((id) => [
+      id,
+      lane(lists.get(id)!.capacity, lists.get(id)!.name),
+    ])
   )
   const gateCanvas = gate()
   const branchCanvas = branch()
@@ -420,19 +447,33 @@ export function layoutOf(demo: Demo) {
     targetHandle: string,
     kind: PathKind,
     look: EdgeData["look"] = "flow",
-    id = `${source}->${target}`
+    id = `${source}->${target}`,
+    bind?: EdgeSpec["bind"]
   ) =>
-    edges.push({ id, source, sourceHandle, target, targetHandle, kind, look })
-  for (const [id, l] of lists)
-    edge(
-      "scope",
-      `slot:${scopeNames.indexOf(l.name)}`,
-      `list:${id}`,
-      "in",
-      "curve",
-      "reference",
-      `ref:${l.name}`
-    )
+    edges.push({
+      id,
+      source,
+      sourceHandle,
+      target,
+      targetHandle,
+      kind,
+      look,
+      bind,
+    })
+  for (const key of bindings) {
+    const [name, list] = key.split(":")
+    if (scopeNames.includes(name) && shownLists.includes(list))
+      edge(
+        "scope",
+        `slot:${scopeNames.indexOf(name)}`,
+        `list:${list}`,
+        "in",
+        "curve",
+        "reference",
+        `ref:${name}:${list}`,
+        { name, list }
+      )
+  }
   for (const name of fns.keys())
     edge("scope", "out", `fn:${name}`, "in", "hcurve")
   for (const id of conds.keys()) {
@@ -451,8 +492,8 @@ export function layoutOf(demo: Demo) {
       edge(src, "out", "output", "in", "curve")
 
   return {
-    demo,
     frames,
+    hidden,
     placed,
     edges,
     scopeNames,
@@ -471,6 +512,26 @@ const varState = (name: string, f: Snapshot): ItemState =>
     : f.scene.focus?.kind === "var" && f.scene.focus.name === name
       ? "active"
       : "idle"
+
+/** `factorial(n=3) · total=6`; a list shows the global name that holds it (`nums → data`). */
+function frameLabel(fr: Frame, p: Program): string {
+  const show = (k: string, b: Binding) => {
+    if ("val" in b) return argLabel(k, b.val)
+    const g = Object.keys(p.globals).find((n) => {
+      const x = p.globals[n]
+      return "ref" in x && x.ref === b.ref
+    })
+    return `${k} → ${g ?? "a list"}`
+  }
+  const params = fr.args.map(([k]) => k)
+  const args = params
+    .filter((k) => k in fr.locals)
+    .map((k) => show(k, fr.locals[k]))
+  const rest = Object.entries(fr.locals)
+    .filter(([k]) => !params.includes(k))
+    .map(([k, b]) => show(k, b))
+  return `${fr.fn}(${args.join(", ")})${rest.length ? ` · ${rest.join(", ")}` : ""}`
+}
 
 function dataFor(
   n: Placed,
@@ -556,7 +617,7 @@ function dataFor(
         maxDepth: L.fns.get(key)!,
         frames: mine.map(({ fr, i }) => ({
           id: s.frames[i],
-          label: `${fr.fn}(${fr.args.map(([k, v]) => argLabel(k, v)).join(", ")})`,
+          label: frameLabel(fr, p),
           got: fr.got,
           active: i === p.frames.length - 1,
         })),
@@ -648,6 +709,11 @@ export function sceneAt(L: Layout, i: number, forward: boolean) {
     if (id.startsWith("list:")) return id.slice(5) in f.program.lists
     return true
   }
+  const bound = (b?: EdgeSpec["bind"]) => {
+    if (!b) return true
+    const x = f.program.globals[b.name]
+    return !!x && "ref" in x && x.ref === b.list
+  }
   const edges: VizEdge[] = L.edges.map((e) => {
     const taken =
       e.look === "branch" &&
@@ -670,7 +736,10 @@ export function sceneAt(L: Layout, i: number, forward: boolean) {
         look: e.look,
         active: pulsing || !!taken,
         hidden:
-          !exists(e.source) || !exists(e.target) || (transient && !pulsing),
+          !exists(e.source) ||
+          !exists(e.target) ||
+          (transient && !pulsing) ||
+          !bound(e.bind),
         pulse: pulsing ? i : undefined,
       },
     }

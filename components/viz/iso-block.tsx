@@ -178,7 +178,8 @@ export function IsoBlock({
   box?: Box
 }) {
   const dur = useDur()
-  const text = value === undefined ? "" : formatVal(value)
+  const full = value === undefined ? "" : formatVal(value)
+  const text = full.length > 8 ? `${full.slice(0, 7)}…` : full
   const size = text.length > 4 ? 10 : 13
   return (
     <motion.g

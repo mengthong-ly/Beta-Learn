@@ -4,6 +4,7 @@ import { test } from "node:test"
 import { frameAt } from "./beat.ts"
 import { formatVal, type Step, type VizEvent } from "./events.ts"
 import { boxBounds, isoPath, project } from "./iso.ts"
+import { layoutOf, sceneAt } from "./layout.ts"
 import { apply, EMPTY, machineSlot, replay, resolve } from "./program.ts"
 
 const steps = (...events: VizEvent[]): Step[] =>
@@ -201,4 +202,59 @@ test("value cards format as their repr; errors are recorded", () => {
     0
   )
   assert.equal(p.error, "IndexError: list index out of range")
+})
+
+test("layout: two functions get their own machines and flights land on them", () => {
+  const L = layoutOf(
+    steps(
+      { type: "call", fn: "main", args: [] },
+      { type: "call", fn: "helper", args: [["n", 1]] }
+    )
+  )
+  const { nodes, flights } = sceneAt(L, 2, true)
+  const helper = nodes.find((n) => n.id === "fn:helper")!
+  assert.equal((helper.data as { frames: unknown[] }).frames.length, 1)
+  assert.equal(flights.length, 1)
+})
+
+test("layout: aliasing draws one reference per name, only while bound", () => {
+  const L = layoutOf(
+    steps(
+      { type: "array.create", name: "a", values: [1] },
+      { type: "ref.set", name: "b", to: "a" },
+      { type: "var.set", name: "b", value: 0 }
+    )
+  )
+  const visible = (i: number) =>
+    sceneAt(L, i, true)
+      .edges.filter((e) => e.id.startsWith("ref:") && !e.data!.hidden)
+      .map((e) => e.id)
+  assert.deepEqual(visible(2), ["ref:a:L1", "ref:b:L1"])
+  assert.deepEqual(visible(3), ["ref:a:L1"])
+})
+
+test("layout: frame labels show locals; a big program is capped", () => {
+  const L = layoutOf(
+    steps(
+      { type: "array.create", name: "data", values: [1] },
+      { type: "call", fn: "f", args: [["nums", { alias: "data" }]] },
+      { type: "var.set", name: "t", value: 3 }
+    )
+  )
+  const fn = sceneAt(L, 3, true).nodes.find((n) => n.id === "fn:f")!
+  assert.equal(
+    (fn.data as { frames: { label: string }[] }).frames[0].label,
+    "f(nums → data) · t=3"
+  )
+
+  const many = layoutOf(
+    steps(
+      ...Array.from({ length: 15 }, (_, i): VizEvent => ({
+        type: "var.set",
+        name: `v${i}`,
+        value: i,
+      }))
+    )
+  )
+  assert.deepEqual(many.hidden, { vars: 3, lists: 0 })
 })

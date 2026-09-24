@@ -73,7 +73,7 @@ export function Playground() {
 }
 
 function DemoView({ demo }: { demo: Demo }) {
-  const layout = useMemo(() => layoutOf(demo), [demo])
+  const layout = useMemo(() => layoutOf(demo.steps), [demo])
   const player = usePlayer(demo.steps.length)
   const step = layout.frames[player.index].step
 
