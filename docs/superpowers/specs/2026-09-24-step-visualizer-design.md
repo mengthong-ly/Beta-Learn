@@ -1,5 +1,7 @@
 # Step-by-step visualizer (Python)
 
+> **Status (2026-09-24):** the UI half is superseded by the isometric visual system at `/visualize` (`components/viz/`, `lib/viz/`, see `docs/architecture.md` → Visualizer). The tracer below is now phase 2: it should emit the `VizEvent`s in `lib/viz/events.ts` (replacing this spec's `Change` type) and render with that canvas.
+
 ## Context
 Learners see what their code printed, and the Inspect tab shows the bytecode and the variables left over at the end. They never see the program *move*: a list growing on `append`, boxes shifting on `insert(0, x)`, two names pointing at one list. This adds a **Visualize** tab that records a Python run line by line and replays it as animated boxes, frames and arrows, in the style of Python Tutor but in ThongLearn's own look.
 

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useLiveQuery } from "dexie-react-hooks"
 import {
   BookMarkedIcon,
+  BoxesIcon,
   CheckIcon,
   CodeIcon,
   HistoryIcon,
@@ -125,6 +126,14 @@ export function AppSidebar({
               <Link href={`/${course}/playground`}>
                 <CodeIcon />
                 <span>Playground</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link href="/visualize">
+                <BoxesIcon />
+                <span>Visualizer</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

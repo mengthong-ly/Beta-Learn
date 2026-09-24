@@ -200,6 +200,29 @@ Two details worth knowing before you touch it:
   the worker and spawns a fresh one. The local runner instead aborts the fetch, and the route
   kills the whole process group.
 
+## Visualizer
+
+`/visualize` (`components/viz/`, `lib/viz/`) animates what a program does, one semantic
+operation per step, in an isometric style. It never reads source code: it's driven by
+`VizEvent`s (`lib/viz/events.ts`), and each layer is a pure function of the one before.
+
+```
+Step[] (event + line + note)      lib/viz/demos.ts   (hand-written; a Python tracer later)
+  → program state                 lib/viz/program.ts (names, lists, call stack, output)
+  → visual state                  lib/viz/scene.ts   (stable element ids, execution focus)
+  → animation state               lib/viz/beat.ts    (entering/exiting/changed, flights, particles)
+  → React Flow nodes + edges      lib/viz/layout.ts  (geometry shared by drawings, handles, anchors)
+  → components/viz/*              IsoBlock, IsoPlatform, IsoGate, IsoEdge, concept nodes
+```
+
+- Stepping back is a replay from the start, so going backward can never drift from going forward.
+- Node positions are fixed for a whole demo; movement happens inside nodes (Motion) or as
+  flights in `ViewportPortal`, because React Flow jumps node positions.
+- `lib/viz/demos.test.ts` runs every demo's code in real Pyodide and checks the events against
+  its output and final variables, plus the pipeline demo's tokens and bytecode.
+- To add a concept: add event types (if needed) to `events.ts`, handle them in `program.ts`,
+  `scene.ts` and `beat.ts`, and draw them with the existing primitives.
+
 ## Client state and storage
 
 | Where | What | Module |
