@@ -29,6 +29,7 @@ import { celebrate, Celebrations } from "@/components/celebrate"
 import { CommandMenu } from "@/components/command-menu"
 import { HistoryList } from "@/components/history-list"
 import { InspectPane } from "@/components/inspect-pane"
+import { VisualizePane } from "@/components/visualize-pane"
 import { Mascot } from "@/components/mascot"
 import { OutputPane } from "@/components/output-pane"
 import { PreviewPane, ScriptFrame } from "@/components/preview-pane"
@@ -74,7 +75,15 @@ import { db } from "@/lib/db"
 import { pushRow } from "@/lib/sync"
 import { findCourse, guideStarter, hasPreview } from "@/lib/courses"
 import { playground, type Lesson } from "@/lib/lesson-parser"
-import { reset, run, show, stop, useCanRun, useRunner, warm } from "@/lib/runner"
+import {
+  reset,
+  run,
+  show,
+  stop,
+  useCanRun,
+  useRunner,
+  warm,
+} from "@/lib/runner"
 
 // Monaco touches `window`; render it only in the browser.
 const CodeEditor = dynamic(
@@ -210,6 +219,8 @@ export function Workspace({
   const [mobileTab, setMobileTab] = useState("read")
   // A line picked in the Inspect tab; cleared whenever a new run starts.
   const [picked, setPicked] = useState<{ line: number; runKey: number }>()
+  // The line the Visualize tab is on; lit in the editor while that tab is open.
+  const [vizLine, setVizLine] = useState<number>()
   // Replays the editor glow: `n` remounts the overlay, `kind` picks the strength.
   const [glow, setGlow] = useState<{ n: number; kind: "ok" | "pass" }>()
   const rightPane = usePanelRef()
@@ -285,15 +296,23 @@ export function Workspace({
       const finished = [...done, key]
       const next = lessons[lessons.indexOf(doc) + 1]
       const sec = sections(lessons).find((s) => s.lessons.includes(doc))
-      const sectionDone = sec?.lessons.every((l) => finished.includes(l.id)) ?? false
+      const sectionDone =
+        sec?.lessons.every((l) => finished.includes(l.id)) ?? false
       const courseDone = lessons.every((l) => finished.includes(l.id))
       const quizzes = lessons.some((l) => l.quiz?.length)
-      const go = (label: string, href: string) => ({ label, onClick: () => router.push(href) })
+      const go = (label: string, href: string) => ({
+        label,
+        onClick: () => router.push(href),
+      })
       celebrate(sectionDone)
       if (courseDone)
         toast.success(`You finished ${c.name}! 🎉`, {
-          description: quizzes ? "Prove it with the final exam." : "Every lesson done.",
-          action: quizzes ? go("Final exam", quizHref(course, "final")) : undefined,
+          description: quizzes
+            ? "Prove it with the final exam."
+            : "Every lesson done.",
+          action: quizzes
+            ? go("Final exam", quizHref(course, "final"))
+            : undefined,
         })
       else if (sec && sectionDone && sec.lessons.some((l) => l.quiz?.length))
         toast.success(`Section complete: ${sec.name}`, {
@@ -301,10 +320,15 @@ export function Workspace({
           action: go("Section quiz", quizHref(course, sec.id)),
         })
       else
-        toast.success(sec && sectionDone ? `Section complete: ${sec.name}` : `${doc.title} complete!`, {
-          description: next ? `Up next: ${next.title}` : undefined,
-          action: next ? go("Next lesson", docHref(next, course)) : undefined,
-        })
+        toast.success(
+          sec && sectionDone
+            ? `Section complete: ${sec.name}`
+            : `${doc.title} complete!`,
+          {
+            description: next ? `Up next: ${next.title}` : undefined,
+            action: next ? go("Next lesson", docHref(next, course)) : undefined,
+          }
+        )
     }
   }
 
@@ -345,7 +369,10 @@ export function Workspace({
     edit(c)
     setOpen(panes.current, editorPane.current, true)
     setMobileTab("code")
-    toast("Loaded into the editor", canRun ? { description: "Press ⌘↵ to run it." } : undefined)
+    toast(
+      "Loaded into the editor",
+      canRun ? { description: "Press ⌘↵ to run it." } : undefined
+    )
   }
 
   const editor = (
@@ -373,8 +400,12 @@ export function Workspace({
             <Button
               size="icon-sm"
               variant="ghost"
-              aria-label={canRun ? "Show solution" : "Compare with the solution"}
-              onClick={() => (canRun ? edit(doc.solution!) : setComparing(true))}
+              aria-label={
+                canRun ? "Show solution" : "Compare with the solution"
+              }
+              onClick={() =>
+                canRun ? edit(doc.solution!) : setComparing(true)
+              }
             >
               <LightbulbIcon />
             </Button>
@@ -439,7 +470,11 @@ export function Workspace({
           onRun={() => executeRef.current()}
           errorLine={state.status === "error" ? state.errorLine : undefined}
           highlightLine={
-            picked?.runKey === state.runKey ? picked.line : undefined
+            tab === "visualize"
+              ? vizLine
+              : picked?.runKey === state.runKey
+                ? picked.line
+                : undefined
           }
         />
       </div>
@@ -461,6 +496,9 @@ export function Workspace({
           {preview && <TabsTrigger value="preview">Preview</TabsTrigger>}
           {c.runtime === "pyodide" && (
             <TabsTrigger value="inspect">Inspect</TabsTrigger>
+          )}
+          {c.runtime === "pyodide" && (
+            <TabsTrigger value="visualize">Visualize</TabsTrigger>
           )}
           <TabsTrigger value="history">
             History{docRuns.length ? ` (${docRuns.length})` : ""}
@@ -491,6 +529,11 @@ export function Workspace({
           }}
         />
       </TabsContent>
+      {c.runtime === "pyodide" && (
+        <TabsContent value="visualize" className="min-h-0">
+          <VisualizePane code={code} docKey={saveKey} onLine={setVizLine} />
+        </TabsContent>
+      )}
       <TabsContent value="history" className="min-h-0 overflow-auto">
         {docRuns.length ? (
           <HistoryList runs={docRuns} activeId={runId} showLesson={false} />
