@@ -1,100 +1,85 @@
-# Step-by-step visualizer (Python)
-
-> **Status (2026-09-24):** the UI half is superseded by the isometric visual system at `/visualize` (`components/viz/`, `lib/viz/`, see `docs/architecture.md` → Visualizer). The tracer below is now phase 2: it should emit the `VizEvent`s in `lib/viz/events.ts` (replacing this spec's `Change` type) and render with that canvas.
+# Visualize any Python code (phase 2)
 
 ## Context
-Learners see what their code printed, and the Inspect tab shows the bytecode and the variables left over at the end. They never see the program *move*: a list growing on `append`, boxes shifting on `insert(0, x)`, two names pointing at one list. This adds a **Visualize** tab that records a Python run line by line and replays it as animated boxes, frames and arrows, in the style of Python Tutor but in ThongLearn's own look.
+Phase 1 built the isometric visual system and its playground at `/visualize`: 12 hand-written demos drive `VizEvent`s (`lib/viz/events.ts`) through program state → visual state → animation state → React Flow (`docs/architecture.md` → Visualizer). Phase 2 makes the same world show **the learner's own code**: a **Visualize** tab in the lesson workspace records a real Pyodide run and replays it one semantic operation per step, with the matching line lit in the editor.
 
 Decisions already made with you:
-- Python first. Other languages, and the "pipeline" view (source → bytecode → run → output as animated cards), each get their own spec later.
+- **Data first.** Variables, lists (insert, remove, update, aliasing), function frames with their locals, and prints. Control flow is shown by the editor/line highlight moving, not by gates or loop cursors (a later phase can add `sys.monitoring` BRANCH events for that).
 - A separate **Visualize** tab. Opening it re-runs the code with tracing; the normal Run stays fast.
-- v1 draws lists, tuples, dicts and scalars, plus a frame for each function call. Everything else is a plain value card.
-- Approach A: record a snapshot on every line in the worker, then diff the snapshots in the browser. No subclassing, no AST rewriting, so Python's semantics stay exactly as they are.
-- Aliasing is drawn with **arrows** from variables and cells to the objects they point at.
+- One event per change, so "one Step = one operation" holds for real code too.
+- Dicts, sets, objects, nested lists and DataFrames appear as value cards (their repr), not animated structures.
 
-## Architecture and data flow
+## Architecture
 
 ```
-Visualize tab opens ─► runner.trace(code) ─► python.worker.js {type:"trace"}
-                                               └─ __trace__ (inspect.py) runs code under sys.settrace
-                  ◄── {type:"done", trace} ◄──┘
-VisualizePane ─► lib/trace.ts (describe, cellKeys) ─► motion boxes + SVG arrows
+Visualize tab opens → runner.trace(code) → python.worker.js {type:"trace"}
+                                             └ __trace__ (public/inspect.py): Snap[] under sys.settrace
+lib/viz/trace-events.ts: Snap[] → Step[] (VizEvents + generated notes)
+→ the existing pipeline: program.ts → scene.ts → beat.ts → layout.ts → VizPlayer (shared with /visualize)
 ```
-
-### Worker (`public/python.worker.js`)
-- A new message, `{ type: "trace", code }`. It uses the same fresh-namespace setup, dataset files, package loading, phases, stdout capture and `input()` behaviour as a normal run, and the same 10 s timeout, which the runner starts on the `running` phase.
-- It calls `__trace__(ns, code_object)` and posts `{ type: "done", ms, trace, error?, errorLine? }`. Lesson `check` blocks never run during a trace.
-- A syntax error means there's no trace: it posts `done` with `error` and no `trace`.
 
 ### Tracer (`__trace__` in `public/inspect.py`, next to `__inspect__`)
-- `sys.settrace` with a global tracer. It returns the local tracer only for frames whose `f_code.co_filename == "<exec>"`, so library and stdlib frames produce no steps (in 3.14, `'call'`'s return value sets the local tracer; see the sys.settrace reference). Tracing is removed in a `finally`.
-- It records a step on `line` (the state *before* the line runs), `call`, `return` (with the return value) and `exception`. The module-level `return` step holds the final state.
-- Step format (JSON):
+- `sys.settrace` with a global tracer that returns the local tracer only for frames whose `f_code.co_filename == "<exec>"`, so library frames never produce steps. In 3.14 the `'call'` event's return value sets the local tracer, and `'line'` fires *before* a line runs (https://docs.python.org/3.14/library/sys.html#sys.settrace). Tracing is removed in a `finally`.
+- One snapshot per `line`, `call`, `return` (with the return value) and `exception` event:
   ```
-  Trace = { steps: Step[], truncated: boolean }
-  Step  = { line: number, event: "line"|"call"|"return"|"exception",
-            frames: { name: string, vars: [string, Val][] }[],   // outermost first; "<module>" shown as "Global"
-            heap: Record<string, Obj>,                           // id(obj) as hex → object
-            out: number,                                         // stdout characters written so far
-            ret?: Val, exc?: string }
-  Val   = number | boolean | null | { s: string } | { ref: string }   // int/float/bool/None inline, str as {s}
-  Obj   = { t: "list"|"tuple", items: Val[], more: number }
-        | { t: "dict", entries: [Val, Val][], more: number }
-        | { t: "other", type: string, repr: string }
+  Snap  = { line: number, event: "line"|"call"|"return"|"exception",
+            frames: { fn: string, vars: [string, Value][] }[],   // outermost ("<module>") first
+            lists: Record<string, { items: Value[], more: number }>, // id(list) as hex
+            out: number,                                          // stdout characters written so far
+            ret?: Value, exc?: string }
+  Value = number | string | boolean | null      // int/float/str/bool/None (JSON keeps "3" and 3 apart)
+        | { ref: string }                       // a list, by id
+        | { repr: string, type: string }        // anything else: dict, set, tuple, object, nan/inf
   ```
-  - Strings are wrapped as `{ s: "..." }` so a Python `"3"` never looks like the number `3`. Strings and `other` reprs are capped at 80 characters.
-  - The heap is built by walking from the frame variables. Each id is serialized once, so self-reference (`a.append(a)`) and shared objects are safe. Modules, functions and classes are left out of `vars`, as in `__inspect__`, and dunder names are skipped.
-- **Caps:** 500 steps. On step 501 the tracer raises a private `_TraceLimit` exception to abort the run, so an infinite loop ends there instead of at the timeout. `truncated: true` is set, and that exception is not reported as an error. At most 50 items or entries per container, with the rest counted in `more`. Anything that isn't a list, tuple or dict (sets, instances, DataFrames) is `other`.
+  - Lists are collected by walking from frame variables; each id once, so self-reference (`a.append(a)`) and shared lists are safe. A list inside a list is a `{repr}` cell (nested structures are out of v1).
+  - Dunder names, modules, functions and classes are left out of `vars`, as in `__inspect__`. Reprs and strings are capped at 80 characters.
+- **Caps:** 500 snapshots, then a private `_TraceLimit(BaseException)` aborts the run (so a learner's `except Exception` can't swallow it, and an infinite loop ends at the cap instead of the timeout); `truncated: true`. At most 50 items per list, the rest counted in `more`.
 
-### Runner (`lib/runner.ts`)
-- `trace(code): Promise<RunState & { trace?: Trace }>` reuses the Pyodide worker, the boot/compile/install/running phases, the timeout and `stop()`. It doesn't touch the Output tab's run state or history.
+### Worker (`public/python.worker.js`) and runner (`lib/runner.ts`)
+- A new message `{ type: "trace", code }`: the same fresh namespace, dataset files, package loading, phases, stdout capture and `input()` behaviour as a run. It posts `{ type: "done", ms, trace: { snaps, truncated, stdout }, error?, errorLine? }`. Lesson `check` blocks never run.
+- `trace(code)` in `lib/runner.ts` reuses the Pyodide worker, boot phases, 10 s timeout and `stop()`, and resolves with the result. It never touches the Output tab's `RunState` or history.
 
-## Diffing (`lib/trace.ts`, pure, tested)
-- Types for `Trace`, `Step`, `Val` and `Obj`.
-- `describe(prev: Step, next: Step): Change[]`:
-  - `var-new`, `var-set` (the old and new `Val`), `var-del`, `call { name }`, `return { value }`
-  - `list-insert { obj, index, value }`, `list-remove { obj, index, value }`, `list-set { obj, index, from, to }`
-  - `dict-add { obj, key }`, `dict-remove { obj, key }`, `dict-set { obj, key, from, to }`
-  - One step can change several things (`a, b = b, a`), so `describe` returns them all. The caption lists them in plain words ("appended `4` at index 3", "`total` changed 3 → 7"). It never guesses at the method that was called.
-- `cellKeys(trace): Map<string /* obj id */, string[][] /* per step, key per index */>`: each list or tuple cell gets a key that stays the same across steps, via an LCS diff of consecutive item lists (items compared by `Val` equality). Unmatched cells get fresh keys. `// ponytail: O(n²) LCS per step, fine at the 50-item cap`.
-- Insertions and removals from the LCS are what `describe` reports as `list-insert`/`list-remove`. Same-position matches whose value changed are `list-set`.
+### Adapter (`lib/viz/trace-events.ts`, pure, tested)
+`toSteps(snaps, stdout): Step[]` compares each snapshot with the next. The step's `line` is the line that just ran (the earlier snapshot's line; for `call`, the caller's line). It emits one event per change, in this order:
+1. `call { fn, args }` when a frame appears (args = the new frame's variables at entry); `return { fn, value }` when one goes (value from the `return` snapshot).
+2. Per variable in the current frame: new or changed scalar/repr → `var.set`; bound to a list id not seen before → `array.create`; bound to a list another name already holds → `ref.set { name, to }` (aliasing: a second reference connection to the same list); name gone → `var.del`.
+3. Per list id present in both snapshots: an LCS diff of the items → `array.insert` / `array.remove` / `array.set`, naming the list by the first variable that holds it.
+4. New complete stdout lines since the last snapshot → one `print` per line.
+5. An `exception` snapshot at the end → `error { text }` (the traceback cleaned by `public/traceback.js`).
 
-## UI (`components/visualize-pane.tsx`)
-- **Tab:** `Visualize` in `components/workspace.tsx`, only when the course runtime is `pyodide`, placed between Inspect and History. The first time it opens after the code changes, it calls `trace()`. If the code changes after that, it shows a **"Code changed, re-trace"** button instead of re-tracing on its own.
-- **Controls:** first / previous / play-pause / next / last buttons, a slider (added with `npx shadcn add slider`), `Step n / N`, and ← → keys while the pane has focus. Play advances about 2 steps per second and stops at the end.
-- **Editor line:** the current step's line is highlighted through the existing `onPickLine` path Inspect uses. The caption says whether the line is *about to run* (`line`), a *call* or a *return*.
-- **Canvas:** two columns, **Frames** and **Objects**. Under about 520 px wide (always on phones) they stack, frames above objects.
-  - A frame card lists its variables. Scalars show inline; a `{ref}` shows an empty slot with a dot where an arrow starts.
-  - A list or tuple is a row of boxes with index labels (tuples get a different border). Motion `layout` slides boxes that move, `AnimatePresence` pops in inserted boxes and fades out removed ones, and a changed value flashes a tint. `more > 0` adds a final `…+N` box.
-  - A dict is a key → value table with the same enter, exit and flash behaviour.
-  - `other` is a card with its type and repr.
-  - Objects are ordered by first appearance, so they don't jump around between steps.
-- **Arrows:** one absolutely positioned `<svg>` overlay. Paths are computed from `getBoundingClientRect` of each source dot and target object. They recalculate on `ResizeObserver` and on every animation frame while a layout animation is running. They're drawn as a curve with an arrowhead, in `currentColor` at muted strength, and the arrows touching the step's changes are drawn in the primary colour. No arrow library: react-xarrows and leader-line are unmaintained and don't follow motion layout animations.
-- **Output strip:** stdout up to `step.out` characters, under the canvas.
-- **Reduced motion:** no sliding or popping, only the change flash. Arrows still update.
-- **Accessibility:** the caption is `aria-live="polite"`, the controls have labels, and each box has its index and value in its accessible name.
+Each step gets a generated plain-language note (`noteFor(event)`: "40 is added at index 3", "b now refers to the same list as a"); the hand-written demos keep theirs. `// ponytail: O(n²) LCS per list per step, fine at the 50-item cap.`
+
+### Event model changes (`lib/viz/events.ts`, `program.ts`, `scene.ts`, `beat.ts`, `layout.ts`)
+- `Val` gains `{ repr: string; type: string }` for values drawn as cards; `formatVal` shows the repr.
+- New events: `ref.set { name, to }`, `var.del { name }`, `error { text }`.
+- **Locals:** a `Frame` gets `locals: Record<string, Binding>`; `var.set` / `ref.set` / `var.del` land in the top frame when a call is running, else in globals, and names resolve top frame → globals. Frame labels show locals compactly (`factorial(n=3) · total=6`); a local that refers to a list reads `nums → numbers`.
+- **Fix:** frames sit on their function's machine by *per-machine* index (today it's the global stack depth, which misplaces frames once two different functions are on the stack). Flight anchors use the same index.
+- `layout.ts` caps the scope lane at 12 variables and lists at 6 per demo, with a "+N more" tag, so a big program still frames on screen.
+
+### UI
+- **Shared player:** the canvas + timeline + explanation card move out of `components/viz/playground.tsx` into `components/viz/viz-player.tsx` (`<VizPlayer steps code? onLine? />`), used by both `/visualize` and the tab, so they can't drift apart.
+- **Tab:** `Visualize` in `components/workspace.tsx`, only when the course runtime is `pyodide`, between Inspect and History. The first time it opens after the code changes, it calls `trace()`; if the code changes later it shows **"Code changed – trace again"** and never re-traces on its own.
+- **Editor sync:** the current step's line is lit in Monaco through the existing `highlightLine` prop (`components/code-editor.tsx:93`), the same path the Inspect tab's picked line uses (`components/workspace.tsx:212`).
 
 ## Errors and edge cases
 - **Syntax error:** no trace. An Empty state says "Fix the syntax error first" and links to the Output tab.
-- **Runtime exception:** the last step is `exception`, shown in red with the text cleaned by `cleanTraceback`. Learners can scrub back to see what led to it.
+- **Runtime exception:** the last step is `error`, shown in red with the cleaned traceback; scrub back to see what led to it.
 - **Truncated:** a banner reads "Showing the first 500 steps".
-- **Timeout** (slow code that stays under 500 steps, e.g. one huge `sum(range(10**9))`): the same message as Run. Any partial trace is discarded.
-- **A learner's own `except Exception`** can catch `_TraceLimit`. To stop that, it subclasses `BaseException`, the way `KeyboardInterrupt` does.
+- **Timeout** (slow code under 500 steps, e.g. one huge `sum(range(10**9))`): the same message as Run; no partial trace.
 - **`input()`:** the same error as Run.
-- **The tab is never read for progress.** Visualize doesn't count as a run and doesn't write history.
+- **Unsupported values** render as value cards; nothing throws.
+- **Progress:** Visualize never counts as a run and never writes history.
 
 ## Testing
-- `lib/trace.test.ts` (`npm test`): `describe` on append, insert at 0, pop from the middle, set by index, swap, dict add, remove and set, a list mutated through an alias, a nested list, and several changes in one step. `cellKeys` keeping keys stable through `insert(0, x)` and `pop(0)`.
-- `lib/trace-py.test.ts` (`npm test`): loads Pyodide from `node_modules` the way `scripts/check-content.ts` does, runs `inspect.py`, and traces three fixed programs. It checks the step count and line order, that two names share one heap id, that no stdlib frames appear, that a 1000-iteration loop sets `truncated`, that self-reference is safe, and that the last step is `exception` when the code raises.
-- **UI:** a Playwright pass (`webapp-testing` skill) on a Python lesson. Open Visualize, step past an `append` line and confirm a new box, confirm an arrow `<path>` exists for an aliased list, then take screenshots in light, dark and at 390 px wide.
-- `npm run lint`, `npm run typecheck` and `npm test` all pass.
+- `lib/viz/trace-events.test.ts` (`npm test`), on hand-built snapshots: append, insert at 0, pop from the middle, swap (`a[0], a[1] = a[1], a[0]` → two `array.set`), aliasing `b = a` → `ref.set`, a mutation through the alias, a call with locals, nested calls across two different functions (frames on the right machines), `del`, several changes on one line, prints, and a final exception.
+- `lib/viz/trace-py.test.ts` (`npm test`), in real Pyodide: trace a set of programs, convert with `toSteps`, replay the events, and assert the replayed globals and output equal what Python really left (the same guarantee `demos.test.ts` gives the demos). Also: no stdlib frames, a `while True` loop sets `truncated`, self-reference is safe, `except Exception` doesn't swallow the cap.
+- **UI:** open a Python lesson, open Visualize, step, and assert the editor's highlighted line follows the steps; screenshots in light, dark and at 390 px.
+- `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
 ## Out of scope (later)
-- The pipeline view (its own spec).
+- Control flow on real code (gates, loop cursor) via `sys.monitoring` BRANCH_LEFT/BRANCH_RIGHT events.
+- Dicts, sets, tuples, objects and nested lists as animated structures; reference connections from function locals.
 - Other languages.
-- Method names in captions via `sys.monitoring` CALL events.
-- Sets and class instances drawn as boxes, and routing arrows to avoid crossings.
-- Visualize-specific lesson content.
 
 ## Reference
 - sys.settrace: https://docs.python.org/3.14/library/sys.html#sys.settrace
