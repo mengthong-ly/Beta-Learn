@@ -1,21 +1,15 @@
 "use client"
 
-import { useMemo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { ArrowLeftIcon, ArrowUpRightIcon } from "lucide-react"
-import { MotionConfig } from "motion/react"
 
-import { Badge } from "@/components/ui/badge"
 import { DEMOS } from "@/lib/viz/demos"
 import type { Demo } from "@/lib/viz/events"
-import { layoutOf } from "@/lib/viz/layout"
-import { usePlayer } from "@/lib/viz/use-player"
 import { cn } from "@/lib/utils"
 
 import { CodePanel } from "./code-panel"
-import { VizCanvas } from "./viz-canvas"
-import { VizTimeline } from "./viz-timeline"
+import { VizPlayer } from "./viz-player"
 
 /** The visualizer playground: pick a demo, step through it one semantic operation at a time. */
 export function Playground() {
@@ -73,31 +67,12 @@ export function Playground() {
 }
 
 function DemoView({ demo }: { demo: Demo }) {
-  const layout = useMemo(() => layoutOf(demo.steps), [demo])
-  const player = usePlayer(demo.steps.length)
-  const step = layout.frames[player.index].step
-
   return (
-    // Reduced motion for everything in the demo: canvas, code highlight, output.
-    <MotionConfig reducedMotion="user">
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <section
-          className="relative order-1 h-[56svh] min-h-80 shrink-0 lg:order-2 lg:h-auto lg:flex-1"
-          aria-label="Visualization"
-        >
-          {/* absolute: React Flow sizes itself to 100% of its parent, which a flex item's height isn't */}
-          <div className="absolute inset-0">
-            <VizCanvas
-              key={demo.id}
-              layout={layout}
-              index={player.index}
-              forward={player.forward}
-              speed={player.speed}
-            />
-          </div>
-        </section>
-
-        <aside className="order-2 flex shrink-0 flex-col gap-4 border-t p-4 lg:order-1 lg:w-[400px] lg:overflow-y-auto lg:border-t-0 lg:border-r">
+    <VizPlayer
+      steps={demo.steps}
+      variant="split"
+      aside={(line) => (
+        <>
           <div>
             <h2 className="text-lg font-semibold tracking-tight">
               {demo.title}
@@ -106,46 +81,20 @@ function DemoView({ demo }: { demo: Demo }) {
               {demo.summary}
             </p>
           </div>
-
-          <CodePanel code={demo.code} line={step?.line} />
-
-          <section
-            aria-live="polite"
-            aria-label="What just happened"
-            className="min-h-24 rounded-lg border bg-card p-3"
-          >
-            {step ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="font-mono">
-                    {step.event.type}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    line {step.line}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-relaxed">{step.note}</p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Nothing has run yet. Press Step to run the first operation.
-              </p>
-            )}
-          </section>
-
-          <VizTimeline player={player} />
-
-          <a
-            href={demo.reference.href}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-auto flex items-center gap-1 text-xs text-link hover:underline"
-          >
-            Reference: {demo.reference.label}
-            <ArrowUpRightIcon className="size-3" />
-          </a>
-        </aside>
-      </div>
-    </MotionConfig>
+          <CodePanel code={demo.code} line={line} />
+        </>
+      )}
+      footer={
+        <a
+          href={demo.reference.href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-auto flex items-center gap-1 text-xs text-link hover:underline"
+        >
+          Reference: {demo.reference.label}
+          <ArrowUpRightIcon className="size-3" />
+        </a>
+      }
+    />
   )
 }
