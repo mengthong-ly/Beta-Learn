@@ -207,7 +207,7 @@ operation per step, in an isometric style. It never reads source code: it's driv
 `VizEvent`s (`lib/viz/events.ts`), and each layer is a pure function of the one before.
 
 ```
-Step[] (event + line + note)      lib/viz/demos.ts   (hand-written; a Python tracer later)
+Step[] (event + line + note)      lib/viz/demos.ts (hand-written) or lib/viz/trace-events.ts (a real run)
   → program state                 lib/viz/program.ts (names, lists, call stack, output)
   → visual state                  lib/viz/scene.ts   (stable element ids, execution focus)
   → animation state               lib/viz/beat.ts    (entering/exiting/changed, flights, particles)
@@ -222,6 +222,11 @@ Step[] (event + line + note)      lib/viz/demos.ts   (hand-written; a Python tra
   its output and final variables, plus the pipeline demo's tokens and bytecode.
 - To add a concept: add event types (if needed) to `events.ts`, handle them in `program.ts`,
   `scene.ts` and `beat.ts`, and draw them with the existing primitives.
+- **The Visualize tab** (`components/visualize-pane.tsx`) traces the learner's code: `trace()` in
+  `lib/runner.ts` asks the Pyodide worker to run it under `__trace__` (`public/inspect.py`, a
+  `sys.settrace` snapshot per line, capped at 500), and `toSteps` turns each change between
+  snapshots into one event. `lib/viz/trace-py.test.ts` round-trips real programs through it.
+  `components/viz/viz-player.tsx` is the player both the tab and `/visualize` use.
 
 ## Client state and storage
 

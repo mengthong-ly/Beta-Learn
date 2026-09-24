@@ -4,16 +4,6 @@ import { notFound } from "next/navigation"
 import { Doc } from "@/components/doc"
 import { getCourse } from "@/lib/content"
 
-export const dynamicParams = false
-
-export function generateStaticParams({
-  params: { course },
-}: {
-  params: { course: string }
-}) {
-  return getCourse(course)!.guide.map((g) => ({ chapter: g.id }))
-}
-
 export async function generateMetadata({
   params,
 }: PageProps<"/[course]/guide/[chapter]">): Promise<Metadata> {

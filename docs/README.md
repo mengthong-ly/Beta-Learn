@@ -216,7 +216,7 @@ Branch off `develop`; that's the main branch here.
 app/            routes (App Router). app/[course]/… is the learner workspace.
 components/     React components. components/ui/ is shadcn — add via the CLI, don't hand-roll.
 content/<course>/lessons/*.md    the courses
-content/python/guide/*.md        the Python Guide Book (only Python has one)
+content/<course>/guide/*.md      the Guide Book for that course
 lib/            content parsing, runners, storage, auth, pure logic + its tests
 public/         python.worker.js, inspect.py, react-preview.html, datasets
 runtimes/       generated toolchain sandboxes (gitignored; `npm run setup:runtimes`)

@@ -8,7 +8,7 @@ Content is Markdown on disk. There's no CMS and no database — a lesson is a fi
 
 ```
 content/<course>/lessons/NN-slug.md   lessons, ordered by the numeric prefix
-content/python/guide/NN-slug.md       the Guide Book (only Python has one so far)
+content/<course>/guide/NN-slug.md     the Guide Book (every course has one)
 ```
 
 The file's slug (`NN-` stripped, `.md` stripped) becomes the URL and the storage key. **Renaming

@@ -42,6 +42,14 @@ code object, plus each variable's type, `repr`, `id`, refcount, size and mutabil
 `lib/opcodes.ts` turns opcode names into the explanations shown in `components/inspect-pane.tsx`.
 Inspect is Python-only.
 
+### The Visualize tab
+
+The worker also accepts `{ type: "trace", id, code }`: the same setup as a run, executed under
+`__trace__` from `public/inspect.py` (a `sys.settrace` snapshot per line of the learner's code,
+at most 500, with stdout captured). Its messages carry `job: "trace"` and the id, so `trace()`
+in `lib/runner.ts` keeps them apart from Run and never touches the Output tab or history.
+`lib/viz/trace-events.ts` turns the snapshots into visualizer steps.
+
 ## React (sandboxed iframe)
 
 `public/react-preview.html` loads in an iframe with `allow-scripts` only, so it has an opaque
