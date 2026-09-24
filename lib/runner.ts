@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react"
 
 import type { Course } from "./courses"
+import type { Trace } from "./viz/trace-events"
 
 export type Line = { kind: "out" | "err"; text: string }
 export type Phase = "booting" | "compiling" | "installing" | "running"
@@ -76,7 +77,10 @@ const WORKERS = {
       installing: "Downloading pandas & numpy (first use only)",
     },
   },
-  ts: { url: "/ts.worker.js", labels: { booting: "Loading TypeScript (first run downloads ~3 MB)" } },
+  ts: {
+    url: "/ts.worker.js",
+    labels: { booting: "Loading TypeScript (first run downloads ~3 MB)" },
+  },
   cpp: {
     url: "/cpp.worker.js",
     labels: { installing: "Downloading clang (first run only, ~23 MB)" },
@@ -90,7 +94,8 @@ const WORKERS = {
   },
 } as const
 type WorkerRuntime = keyof typeof WORKERS
-const isWorker = (runtime: string): runtime is WorkerRuntime => runtime in WORKERS
+const isWorker = (runtime: string): runtime is WorkerRuntime =>
+  runtime in WORKERS
 
 const workers: Partial<Record<WorkerRuntime, Worker>> = {}
 const booted = new Set<WorkerRuntime>()
@@ -102,24 +107,34 @@ let previewFrame: Window | null = null
 
 const startTimer = () => {
   timer = setTimeout(
-    () => finish({ status: "timeout", error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?` }),
+    () =>
+      finish({
+        status: "timeout",
+        error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?`,
+      }),
     TIMEOUT_MS
   )
 }
 
 /** Boot a course's runtime ahead of its first run (Python downloads ~10 MB, TypeScript ~3 MB). */
 export function warm(runtime: string) {
-  if (typeof window !== "undefined" && isWorker(runtime) && !workers[runtime]) spawn(runtime)
+  if (typeof window !== "undefined" && isWorker(runtime) && !workers[runtime])
+    spawn(runtime)
 }
 
 function spawn(runtime: WorkerRuntime) {
-  const worker = new Worker(/* turbopackIgnore: true */ WORKERS[runtime].url, { type: "module" })
+  const worker = new Worker(/* turbopackIgnore: true */ WORKERS[runtime].url, {
+    type: "module",
+  })
   workers[runtime] = worker
   worker.onmessage = ({ data }) => {
     if (data.type === "ready") {
       booted.add(runtime)
-      return busy === runtime && state.phase === "booting" ? set({ phase: "compiling" }) : undefined
+      return busy === runtime && state.phase === "booting"
+        ? set({ phase: "compiling" })
+        : undefined
     }
+    if (data.job === "trace") return onTraceMessage(data)
     if (data.type === "phase") {
       if (data.phase === "running") startTimer()
       return set({ phase: data.phase })
@@ -128,7 +143,10 @@ function spawn(runtime: WorkerRuntime) {
       // TypeScript: the worker is done; the hidden iframe runs the JavaScript and reports back.
       busy = undefined
       startTimer()
-      return set({ phase: "running", preview: { kind: "script", main: data.main, check: data.check } })
+      return set({
+        phase: "running",
+        preview: { kind: "script", main: data.main, check: data.check },
+      })
     }
     if (data.type === "line") {
       if (state.lines.length >= MAX_LINES)
@@ -174,7 +192,8 @@ function finish(patch: Partial<RunState>) {
   settle = undefined
 }
 
-const isLocal = () => ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)
+const isLocal = () =>
+  ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)
 
 const runnerOff =
   "This course runs on your computer, and the local runner is off. Start ThongLearn with `npm run dev` (and run `npm run setup:runtimes` once)."
@@ -188,12 +207,80 @@ export function useCanRun(course: Pick<Course, "runtime">) {
   )
 }
 
+export type TraceResult = { trace?: Trace; error?: string; errorLine?: number }
+
+/** The runtimes the Visualize tab can record. */
+export type TraceRuntime = "pyodide" | "cpp"
+export const canTrace = (runtime: string): runtime is TraceRuntime =>
+  runtime === "pyodide" || runtime === "cpp"
+
+let traceId = 0
+let tracing:
+  | {
+      id: number
+      runtime: TraceRuntime
+      resolve: (r: TraceResult) => void
+      timer?: ReturnType<typeof setTimeout>
+    }
+  | undefined
+
+function endTrace(r: TraceResult) {
+  if (!tracing) return
+  clearTimeout(tracing.timer)
+  tracing.resolve(r)
+  tracing = undefined
+}
+
+function onTraceMessage(data: {
+  id: number
+  type: string
+  phase?: string
+  trace?: Trace
+  error?: string
+  errorLine?: number
+}) {
+  if (!tracing || data.id !== tracing.id) return // an older trace, already replaced
+  const { runtime } = tracing
+  if (data.type === "phase" && data.phase === "running")
+    tracing.timer = setTimeout(() => {
+      endTrace({
+        error: `Stopped after ${TIMEOUT_MS / 1000}s: is there an infinite loop?`,
+      })
+      // a busy worker can't be interrupted without SharedArrayBuffer; replace it
+      workers[runtime]?.terminate()
+      booted.delete(runtime)
+      spawn(runtime)
+    }, TIMEOUT_MS)
+  if (data.type === "done")
+    endTrace({
+      trace: data.trace,
+      error: data.error,
+      errorLine: data.errorLine,
+    })
+}
+
+/** Record a run for the Visualize tab. Never touches the Output tab's state or history. */
+export function trace(
+  code: string,
+  runtime: TraceRuntime
+): Promise<TraceResult> {
+  if (state.status === "running") stop()
+  endTrace({ error: "Replaced by a newer trace." })
+  warm(runtime)
+  const id = ++traceId
+  return new Promise((resolve) => {
+    tracing = { id, runtime, resolve }
+    workers[runtime]!.postMessage({ type: "trace", id, code })
+  })
+}
+
 export function run(
   code: string,
   check: string | undefined,
   course: Pick<Course, "id" | "runtime">
 ): Promise<RunState> {
   if (state.status === "running") stop()
+  endTrace({ error: "Interrupted by Run." })
   const fresh = {
     status: "running" as const,
     lines: [],
@@ -219,7 +306,12 @@ export function run(
     })
     workers[runtime]!.postMessage({ code, check, course: course.id })
   } else if (course.runtime === "react") {
-    set({ ...fresh, phase: "running", label: "Rendering", preview: { kind: "react", code, check } })
+    set({
+      ...fresh,
+      phase: "running",
+      label: "Rendering",
+      preview: { kind: "react", code, check },
+    })
     startTimer()
   } else {
     const building = course.id === "flutter" && !check
@@ -238,7 +330,8 @@ export function run(
       signal: aborter.signal,
     })
       .then(async (res) => {
-        if (res.status === 403) return finish({ status: "error", error: runnerOff })
+        if (res.status === 403)
+          return finish({ status: "error", error: runnerOff })
         const r = await res.json()
         finish({
           status: r.error ? "error" : "done",
@@ -247,11 +340,14 @@ export function run(
           error: r.error,
           errorLine: r.errorLine,
           check: r.check,
-          ...(r.previewUrl && { preview: { kind: "url" as const, url: r.previewUrl } }),
+          ...(r.previewUrl && {
+            preview: { kind: "url" as const, url: r.previewUrl },
+          }),
         })
       })
       .catch((e: Error) => {
-        if (e.name !== "AbortError") finish({ status: "error", error: runnerOff })
+        if (e.name !== "AbortError")
+          finish({ status: "error", error: runnerOff })
       })
   }
   return done
@@ -272,7 +368,15 @@ if (typeof window !== "undefined")
     if (!previewFrame || source !== previewFrame || !data?.thonglearn) return
     if (state.status !== "running") return
     if (data.type === "line")
-      return set({ lines: [...state.lines, { kind: data.kind, text: data.text }].slice(0, MAX_LINES) }, false)
+      return set(
+        {
+          lines: [...state.lines, { kind: data.kind, text: data.text }].slice(
+            0,
+            MAX_LINES
+          ),
+        },
+        false
+      )
     if (data.type === "done")
       finish({
         status: data.error ? "error" : "done",

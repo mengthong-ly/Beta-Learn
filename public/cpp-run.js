@@ -78,6 +78,73 @@ const toLines = (text, kind) =>
 const asMain = (s) => s.replaceAll(LESSON, MAIN)
 
 /**
+ * Run clang++ on `files` → { ok, prog?, diagnostics }.
+ * @param {(args: string[], files: any, opts?: any) => any} clang
+ */
+export async function compile(clang, files, args) {
+  const decoder = new TextDecoder()
+  let diagnostics = ""
+  try {
+    const built = await clang([...FLAGS, ...args], files, {
+      // clang writes its diagnostics as byte chunks, with a null at the end of the stream.
+      stderr: (chunk) =>
+        chunk && (diagnostics += typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true })),
+    })
+    return { ok: true, prog: built.prog, diagnostics }
+  } catch {
+    return { ok: false, diagnostics } // non-zero exit: the message is in `diagnostics`
+  }
+}
+
+/** A compile failure as the learner sees it: their file's name, and the first line it names. */
+export function compileError(diagnostics) {
+  const error = asMain(diagnostics).trim() || "The compiler failed"
+  const m = error.match(/main\.cpp:(\d+)/)
+  return { error, errorLine: m ? Number(m[1]) : undefined }
+}
+
+/**
+ * Run a compiled program under WASI → { out, err, exit, crashed? }.
+ * @param {{ WASI: any, File: any, OpenFile: any, ConsoleStdout: any, PreopenDirectory: any }} wasi
+ * @param {(memory: () => WebAssembly.Memory, text: { out: string, err: string }) => object} [imports]
+ *   extra import modules; they can read the program's memory and the output written so far
+ */
+export async function execute(wasi, prog, imports) {
+  // Collect the raw bytes rather than whole lines: a program that ends without a newline
+  // ("std::cout << \"hi\";") still wrote a line, and lineBuffered() would swallow it.
+  const text = { out: "", err: "" }
+  const decoders = { out: new TextDecoder(), err: new TextDecoder() }
+  const sink = (kind) =>
+    new wasi.ConsoleStdout((bytes) => (text[kind] += decoders[kind].decode(bytes, { stream: true })))
+  const instance = new wasi.WASI(
+    ["lesson"],
+    [],
+    [new wasi.OpenFile(new wasi.File([])), sink("out"), sink("err"), new wasi.PreopenDirectory("/", new Map())]
+  )
+  let program
+  ;({ instance: program } = await WebAssembly.instantiate(prog, {
+    wasi_snapshot_preview1: instance.wasiImport,
+    ...imports?.(() => program.exports.memory, text),
+  }))
+  let exit = 0
+  let crashed
+  try {
+    exit = instance.start(program)
+  } catch (e) {
+    crashed = e
+  }
+  return { out: text.out, err: text.err, exit, crashed }
+}
+
+/** What a trap means, in words a learner can act on. */
+export const crashMessage = (e) => {
+  const message = e instanceof Error ? e.message : String(e)
+  return /unreachable/.test(message)
+    ? "The program stopped: something failed at runtime (an out-of-range .at(), a failed assert, or undefined behaviour)."
+    : message
+}
+
+/**
  * → { lines, error?, errorLine?, check? }
  * @param {(args: string[], files: any, opts?: any) => any} clang
  * @param {{ WASI: any, File: any, OpenFile: any, ConsoleStdout: any, PreopenDirectory: any }} wasi
@@ -90,62 +157,20 @@ export async function compileAndRun(clang, wasi, { code, check }, onRunning) {
     files[LESSON] = asHeader(code)
     files["check.cpp"] = checkWrapper(check)
   }
-  const entry = check ? "check.cpp" : MAIN
-
-  const decoder = new TextDecoder()
-  let diagnostics = ""
-  const compile = async (args) => {
-    diagnostics = ""
-    try {
-      return await clang([...FLAGS, ...(check ? CHECK_FLAGS : []), ...args], files, {
-        // clang writes its diagnostics as byte chunks, with a null at the end of the stream.
-        stderr: (chunk) =>
-          chunk && (diagnostics += typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true })),
-      })
-    } catch {
-      return undefined // non-zero exit: the message is in `diagnostics`
-    }
-  }
-
-  let built = await compile(["-o", "prog", entry])
-  if (!built) {
+  const flags = check ? CHECK_FLAGS : []
+  const built = await compile(clang, files, [...flags, "-o", "prog", check ? "check.cpp" : MAIN])
+  if (!built.ok) {
     // Don't show the learner the wrapper's cascading errors: if their own file doesn't
     // compile, that's the error worth reporting.
-    if (check) {
-      const alone = diagnostics
-      if (await compile(["-fsyntax-only", MAIN])) diagnostics = alone
-    }
-    const error = asMain(diagnostics).trim() || "The compiler failed"
-    const m = error.match(/main\.cpp:(\d+)/)
-    return { lines: [], error, errorLine: m ? Number(m[1]) : undefined }
+    const alone = check && (await compile(clang, files, [...flags, "-fsyntax-only", MAIN]))
+    return { lines: [], ...compileError(alone && !alone.ok ? alone.diagnostics : built.diagnostics) }
   }
 
   onRunning?.() // the timeout that catches an infinite loop starts here, not during the compile
-  // Collect the raw bytes rather than whole lines: a program that ends without a newline
-  // ("std::cout << \"hi\";") still wrote a line, and lineBuffered() would swallow it.
-  const text = { out: "", err: "" }
-  const decoders = { out: new TextDecoder(), err: new TextDecoder() }
-  const sink = (kind) =>
-    new wasi.ConsoleStdout((bytes) => (text[kind] += decoders[kind].decode(bytes, { stream: true })))
-  const instance = new wasi.WASI(
-    ["lesson"],
-    [],
-    [new wasi.OpenFile(new wasi.File([])), sink("out"), sink("err"), new wasi.PreopenDirectory("/", new Map())]
-  )
-  const { instance: program } = await WebAssembly.instantiate(built.prog, {
-    wasi_snapshot_preview1: instance.wasiImport,
-  })
-
-  let exit = 0
-  let crashed
-  try {
-    exit = instance.start(program)
-  } catch (e) {
-    crashed = e instanceof Error ? e.message : String(e)
-  }
+  const { out, err, exit, crashed } = await execute(wasi, built.prog)
 
   let verdict
-  const stderr = text.err
+  const stderr = err
     .split("\n")
     .filter((l) => {
       if (!l.startsWith(CHECK_MARK)) return true
@@ -153,18 +178,12 @@ export async function compileAndRun(clang, wasi, { code, check }, onRunning) {
       return false
     })
     .join("\n")
-  const lines = [...toLines(text.out, "out"), ...toLines(stderr, "err")]
-  if (crashed !== undefined)
-    return {
-      lines,
-      error: /unreachable/.test(crashed)
-        ? "The program stopped: something failed at runtime (an out-of-range .at(), a failed assert, or undefined behaviour)."
-        : crashed,
-    }
+  const lines = [...toLines(out, "out"), ...toLines(stderr, "err")]
+  if (crashed !== undefined) return { lines, error: crashMessage(crashed) }
   if (exit !== 0 && !verdict)
     return {
       lines: lines.filter((l) => l.kind === "out"),
-      error: stderr.trim() || text.out.trim() || `Exited with code ${exit}`,
+      error: stderr.trim() || out.trim() || `Exited with code ${exit}`,
     }
   return { lines, check: verdict }
 }

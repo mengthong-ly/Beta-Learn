@@ -25,9 +25,41 @@ const ready = (async () => {
   return py
 })()
 
+// Visualize tab: the same setup as a run, but under __trace__ (public/inspect.py), and every
+// message tagged with the job id so the runner never mixes it up with a Run.
+async function traceJob(py, { id, code }) {
+  const post = (m) => postMessage({ ...m, job: "trace", id })
+  const ns = py.globals.get("dict")()
+  ns.set("__name__", "__main__")
+  ns.set("__src__", code)
+  const t0 = performance.now()
+  try {
+    post({ type: "phase", phase: "compiling" })
+    py.runPython("__code__ = compile(__src__, '<exec>', 'exec')", { globals: ns, filename: "<thonglearn>" })
+    await py.loadPackagesFromImports(code, { messageCallback: () => post({ type: "phase", phase: "installing" }) })
+    post({ type: "phase", phase: "running" })
+    const res = JSON.parse(py.globals.get("__trace__")(ns, ns.get("__code__")))
+    const err = res.error ? cleanTraceback(res.error) : undefined
+    post({
+      type: "done",
+      ms: performance.now() - t0,
+      trace: { snaps: res.snaps, truncated: res.truncated, stdout: res.stdout },
+      error: err?.text,
+      errorLine: err?.line,
+    })
+  } catch (e) {
+    // a syntax error: nothing ran, so there's nothing to trace
+    const { text, line } = cleanTraceback(String(e.message))
+    post({ type: "done", ms: performance.now() - t0, error: text, errorLine: line })
+  } finally {
+    ns.destroy()
+  }
+}
+
 self.onmessage = async ({ data }) => {
   const py = await ready
   for (const [name, text] of datasets) py.FS.writeFile(name, text)
+  if (data.type === "trace") return traceJob(py, data)
   const stdout = []
   py.setStdout({
     batched: (line) => {

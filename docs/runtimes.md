@@ -43,6 +43,15 @@ code object, plus each variable's type, `repr`, `id`, refcount, size and mutabil
 `lib/opcodes.ts` turns opcode names into the explanations shown in `components/inspect-pane.tsx`.
 Inspect is Python-only.
 
+### The Visualize tab
+
+The worker also accepts `{ type: "trace", id, code }`: the same setup as a run, executed under
+`__trace__` from `public/inspect.py` (a `sys.settrace` snapshot per line of the learner's code,
+at most 500, with stdout captured). Its messages carry `job: "trace"` and the id, so `trace()`
+in `lib/runner.ts` keeps them apart from Run and never touches the Output tab or history.
+`lib/viz/trace-events.ts` turns the snapshots into visualizer steps. C++ has a Visualize tab too
+(see below).
+
 ## React (sandboxed iframe)
 
 `public/react-preview.html` loads in an iframe with `allow-scripts` only, so it has an opaque
@@ -117,6 +126,16 @@ Each run compiles the lesson to a `wasm32-wasi` program and runs it under WASI, 
   reported, so the learner never sees the wrapper's cascading errors.
 - `printf` goes straight to WASI's stdout, so it shows in the output but is invisible to `output`
   in a check. Lessons use `std::cout`.
+
+### The C++ Visualize tab
+
+The worker accepts the Python worker's `{ type: "trace", id, code }` too. `public/cpp-trace.js`
+parses the file with tree-sitter-cpp (loaded from jsDelivr on the first trace), rewrites it so
+every statement first hands a snapshot of the variables in scope to JavaScript through the
+`viz.snap` wasm import, and compiles and runs that. The snapshots have Python's shape, so
+`toSteps(trace, error, "cpp")` in `lib/viz/trace-events.ts` does the rest. Why a rewrite, and
+what it can't follow: [ADR-0004](adr/0004-tracing-cpp.md). `check:content` traces every C++
+example and requires the traced output to match Run's.
 
 ## Local runner (Dart, Flutter)
 

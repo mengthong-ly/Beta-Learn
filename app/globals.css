@@ -179,6 +179,19 @@
   --tint-mint: #d9f3e1;
   --tint-rose: #fde0ec;
   --tint-yellow: #fef7d6;
+
+  /* Isometric visualizer (components/viz): white faces, hairline outlines, one accent. */
+  --iso-top: #ffffff;
+  --iso-left: color-mix(in oklab, #37352f 5%, #ffffff);
+  --iso-right: color-mix(in oklab, #37352f 11%, #ffffff);
+  --iso-stroke: color-mix(in oklab, #37352f 78%, transparent);
+  --iso-shadow: rgb(55 53 47 / 0.14);
+  --iso-grid: color-mix(in oklab, #37352f 7%, transparent);
+  --iso-edge: color-mix(in oklab, #37352f 38%, transparent);
+  --iso-accent: var(--color-salem-800);
+  --iso-accent-soft: color-mix(in oklab, var(--color-salem-600) 22%, #ffffff);
+  --iso-changed: #fbe7a6;
+  --iso-floor: #fbfaf8;
 }
 
 .dark {
@@ -227,6 +240,18 @@
   --tint-mint: rgb(26 174 57 / 0.14);
   --tint-rose: rgb(255 100 200 / 0.14);
   --tint-yellow: rgb(245 215 94 / 0.14);
+
+  --iso-top: #2a2a2a;
+  --iso-left: #232323;
+  --iso-right: #1c1c1c;
+  --iso-stroke: color-mix(in oklab, #e3e2e0 62%, transparent);
+  --iso-shadow: rgb(0 0 0 / 0.45);
+  --iso-grid: color-mix(in oklab, #e3e2e0 6%, transparent);
+  --iso-edge: color-mix(in oklab, #e3e2e0 34%, transparent);
+  --iso-accent: var(--color-salem-500);
+  --iso-accent-soft: color-mix(in oklab, var(--color-salem-500) 26%, #2a2a2a);
+  --iso-changed: #5c4d17;
+  --iso-floor: #1d1d1d;
 }
 
 @layer base {
@@ -328,4 +353,48 @@
   .animate-ray {
     animation: none;
   }
+}
+
+/* Visualizer canvas (components/viz): React Flow's base.css plus our tokens. */
+.viz-flow {
+  --xy-background-color: var(--iso-floor);
+}
+.viz-flow .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.viz-flow .react-flow__node {
+  cursor: default;
+}
+.viz-flow .react-flow__controls {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+}
+.viz-flow .react-flow__controls-button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--muted-foreground);
+}
+.viz-flow .react-flow__controls-button:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.viz-flow .react-flow__controls-button svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.viz-flow .react-flow__attribution {
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.viz-flow .react-flow__attribution a {
+  color: inherit;
 }
