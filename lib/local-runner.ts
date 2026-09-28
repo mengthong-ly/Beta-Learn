@@ -1,9 +1,9 @@
-// Runs lesson code with the learner's own toolchains (dart, flutter).
+// Runs lesson code with the learner's own toolchains (rustc, dart, flutter).
 // Used by app/api/run (opt-in, see docs/adr/0001-local-runner.md) and scripts/check-content.ts.
 // Every lesson process runs in the OS sandbox (lib/sandbox.ts) with a scrubbed env.
 // No path aliases, erasable TypeScript only: Node runs this file directly.
 import { spawn } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
@@ -22,6 +22,7 @@ export type LocalResult = {
 }
 
 export const LOCAL_COURSES = [
+  "rust",
   "dart",
   "flutter",
 ] as const
@@ -30,11 +31,14 @@ export type LocalCourse = (typeof LOCAL_COURSES)[number]
 export const RUNTIMES = path.join(process.cwd(), "runtimes")
 const SUPPORT = path.join(RUNTIMES, "_support")
 const FLUTTER = path.join(RUNTIMES, "flutter")
+/** Packages the Flutter sandbox has on top of the SDK (added by scripts/setup-runtimes.ts). */
+const FLUTTER_PACKAGES = ["provider", "go_router"]
 
 /** Check wrappers report on stderr with this prefix, then JSON: {"pass": bool, "message"?: string}. */
 export const CHECK_MARK = "@@thonglearn-check "
 const MAX_OUTPUT = 256_000
 const TIMEOUT: Record<LocalCourse, number> = {
+  rust: 30_000,
   dart: 30_000,
   flutter: 300_000,
 }
@@ -209,6 +213,84 @@ async function runDart(code: string, check: string | undefined, signal?: AbortSi
   })
 }
 
+// --- Rust: plain rustc on the 2024 edition; no cargo, so no crates and no network. A check is a
+// #[test] in a child module appended after the learner's code: their line numbers hold, it sees
+// their private items as `lesson::`, and it reads what a normal run printed as `output`. ---
+const RUST_CHECK_MOD = '\n#[cfg(test)]\n#[path = "check.rs"]\nmod __thonglearn_check;\n'
+const RUST_CHECK = (check: string) => `#![allow(unused)]
+use super as lesson;
+
+fn expect(ok: bool, message: impl std::fmt::Display) {
+    if !ok {
+        panic!("{message}")
+    }
+}
+
+fn json(s: &str) -> String {
+    let mut out = String::from("\\"");
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\\\\""),
+            '\\\\' => out.push_str("\\\\\\\\"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out + "\\""
+}
+
+#[test]
+fn check() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let verdict = std::panic::catch_unwind(|| {
+        let output: Vec<String> = include_str!("output.txt").lines().map(String::from).collect();
+${check}
+    });
+    let json = match verdict {
+        Ok(()) => String::from(r#"{"pass":true}"#),
+        Err(e) => {
+            let message = (e.downcast_ref::<String>().cloned())
+                .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
+                .unwrap_or_else(|| String::from("Check failed"));
+            format!(r#"{{"pass":false,"message":{}}}"#, json(&message))
+        }
+    };
+    eprintln!("${CHECK_MARK}{json}");
+}
+`
+
+/** Panics name the thread with an id that changes every run; tests report their timing. */
+const tidyRust = (r: Proc): Proc => ({
+  ...r,
+  stdout: r.stdout.replace(/; finished in [\d.]+s/g, ""),
+  stderr: r.stderr.replace(/thread '([^']*)' \(\d+\) panicked/g, "thread '$1' panicked"),
+})
+
+async function runRust(code: string, check: string | undefined, signal?: AbortSignal) {
+  return withTemp(async (dir) => {
+    const opts = { cwd: dir, timeout: TIMEOUT.rust, signal, sandbox: [dir] }
+    const rustc = (args: string[]) => runProcess("rustc", ["--edition", "2024", ...args, "main.rs"], opts)
+    const started = Date.now()
+    const done = (r: Proc) => settle(tidyRust(r), started, dir, "main.rs", /main\.rs:(\d+)/)
+    // Like the Playground: a file of #[test]s and no main runs its tests.
+    const tests = !/\bfn\s+main\s*\(/.test(code) && /#\[test\]/.test(code)
+    await writeFile(path.join(dir, "main.rs"), code)
+    // Compiler warnings only show when the build fails; a clean build's output is the program's.
+    const built = await rustc(tests ? ["--test", "-o", "main"] : ["-o", "main"])
+    if (built.code !== 0) return done(built)
+    const ran = await runProcess(path.join(dir, "main"), tests ? ["--test-threads=1"] : [], opts)
+    if (!check || ran.code !== 0 || ran.timedOut) return done(ran)
+    await writeFile(path.join(dir, "main.rs"), code + RUST_CHECK_MOD)
+    await writeFile(path.join(dir, "check.rs"), RUST_CHECK(check))
+    await writeFile(path.join(dir, "output.txt"), ran.stdout)
+    const checkBuilt = await rustc(["--test", "-o", "check"])
+    if (checkBuilt.code !== 0) return done(checkBuilt)
+    const checked = await runProcess(path.join(dir, "check"), ["--exact", "__thonglearn_check::check", "--nocapture"], opts)
+    // The harness's own chatter isn't the learner's output: keep the normal run's.
+    return done({ ...checked, stdout: ran.stdout, stderr: ran.stderr + checked.stderr })
+  })
+}
+
 // --- Flutter: one shared project, so one run at a time. ---
 let flutterQueue: Promise<unknown> = Promise.resolve()
 export function serially<T>(fn: () => Promise<T>): Promise<T> {
@@ -304,6 +386,8 @@ export function runLocal(
   opts: { signal?: AbortSignal; flutterMode?: "run" | "test" } = {}
 ): Promise<LocalResult> {
   switch (course) {
+    case "rust":
+      return runRust(code, check, opts.signal)
     case "dart":
       return runDart(code, check, opts.signal)
     case "flutter":
@@ -319,20 +403,29 @@ function isolationProblem() {
   }
 }
 
+/** FLUTTER_PACKAGES the sandbox's pubspec doesn't list yet (all of them if there's no sandbox). */
+export function missingFlutterPackages() {
+  const pubspec = path.join(FLUTTER, "pubspec.yaml")
+  const text = existsSync(pubspec) ? readFileSync(pubspec, "utf8") : ""
+  return FLUTTER_PACKAGES.filter((p) => !text.includes(`\n  ${p}:`))
+}
+
 /** Which toolchains are ready (for the status endpoint and the setup script). */
 export async function toolStatus() {
   const version = async (cmd: string, args: string[]) => {
     const r = await runProcess(cmd, args, { cwd: process.cwd(), timeout: 60_000 })
     return r.code === 0 ? (r.stdout + r.stderr).trim().split("\n")[0] : undefined
   }
-  const [dart, flutter] = await Promise.all([
+  const [rust, dart, flutter] = await Promise.all([
+    version("rustc", ["--version"]),
     version("dart", ["--version"]),
     version("flutter", ["--version"]),
   ])
   return {
+    rust,
     dart,
     flutter,
-    flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")),
+    flutterProject: existsSync(path.join(FLUTTER, "pubspec.yaml")) && missingFlutterPackages().length === 0,
     support: existsSync(SUPPORT),
     /** Why runs can't be sandboxed here (lib/sandbox.ts), if they can't */
     isolation: isolationProblem(),

@@ -57,17 +57,21 @@ async function findLaunchers() {
   const dart = (await run("dart", [path.join(dir, "where.dart")])).trim()
   rmSync(dir, { recursive: true, force: true })
   if (dart) launchers.dart = [dart]
+  // rustup's rustc is a proxy that reads ~/.rustup to pick a toolchain; call the toolchain's own.
+  const sysroot = (await run("rustc", ["--print", "sysroot"])).trim()
+  if (sysroot) launchers.rustc = [path.join(sysroot, "bin", "rustc")]
 }
 
 /**
  * Where each toolchain lives, so the sandbox can read it under a denied $HOME: the parent of
  * the tool's bin/ (~/.asdf for asdf shims, ~/.config/herd-lite, ~/.nvm/versions/node/vX…),
- * the Flutter SDK, and the Dart SDK behind the dart launcher.
+ * the Flutter SDK, the Dart SDK behind the dart launcher, and the Rust toolchain (its sysroot).
  */
 function toolchainRoots(): string[] {
   const bins = ["dart", "flutter"].map(which).filter((p): p is string => !!p)
+  const direct = [...(launchers.dart ?? []), ...(launchers.rustc ?? [])]
   return [
-    ...[...bins.map((p) => realpathSync(p)), ...(launchers.dart ?? [])].map((p) => path.dirname(path.dirname(p))),
+    ...[...bins.map((p) => realpathSync(p)), ...direct].map((p) => path.dirname(path.dirname(p))),
     ...(flutterRoot ? [flutterRoot] : []),
   ]
 }

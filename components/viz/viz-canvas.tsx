@@ -59,7 +59,8 @@ export function VizCanvas({
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         fitView
-        fitViewOptions={{ padding: 0.12 }}
+        // capped zoom: a small scene stays near true scale instead of being blown up soft.
+        fitViewOptions={{ padding: 0.16, maxZoom: 1.4 }}
         minZoom={0.3}
         maxZoom={2}
         nodesDraggable={false}
@@ -69,6 +70,12 @@ export function VizCanvas({
         elementsSelectable={false}
         zoomOnScroll={false}
         preventScrolling={false}
+        // React Flow listens for these on the whole window and swallows them, Space included,
+        // which would stop the page scrolling. Dragging already pans; nothing selects or deletes.
+        panActivationKeyCode={null}
+        selectionKeyCode={null}
+        multiSelectionKeyCode={null}
+        deleteKeyCode={null}
       >
         <IsoGrid />
         <FlyingTokens flights={flights} />

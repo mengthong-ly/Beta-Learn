@@ -15,11 +15,21 @@ import { Slider } from "@/components/ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { SPEEDS, type Player, type Speed } from "@/lib/viz/use-player"
 
-/** VisualizationTimeline: step, play, scrub and change speed. ← → step, Space plays. */
-export function VizTimeline({ player }: { player: Player }) {
+/**
+ * VisualizationTimeline: step, play, scrub and change speed. ← → step, Space plays —
+ * unless `keys` is false, for pages where Space should still scroll.
+ */
+export function VizTimeline({
+  player,
+  keys = true,
+}: {
+  player: Player
+  keys?: boolean
+}) {
   const { index, count, playing } = player
 
   useEffect(() => {
+    if (!keys) return
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       if (
@@ -39,11 +49,11 @@ export function VizTimeline({ player }: { player: Player }) {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [player, playing])
+  }, [player, playing, keys])
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5">
         <Button
           variant="ghost"
           size="icon"
@@ -54,7 +64,7 @@ export function VizTimeline({ player }: { player: Player }) {
           <RotateCcwIcon />
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           onClick={player.back}
           disabled={index === 0}
@@ -63,7 +73,7 @@ export function VizTimeline({ player }: { player: Player }) {
           <SkipBackIcon />
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           onClick={playing ? player.pause : player.play}
           aria-label={playing ? "Pause" : index >= count ? "Replay" : "Play"}
@@ -73,16 +83,13 @@ export function VizTimeline({ player }: { player: Player }) {
         <Button
           onClick={player.step}
           disabled={index >= count}
-          className="flex-1"
+          className="ml-auto"
         >
           Step
           <SkipForwardIcon data-icon="inline-end" />
         </Button>
       </div>
       <div className="flex items-center gap-3">
-        <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">
-          Step {index} of {count}
-        </span>
         <Slider
           value={[index]}
           min={0}
@@ -91,12 +98,16 @@ export function VizTimeline({ player }: { player: Player }) {
           onValueChange={([v]) => player.seek(v)}
           aria-label="Timeline"
         />
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+          {index}/{count}
+        </span>
       </div>
       <div className="flex items-center justify-between gap-3">
         <ToggleGroup
           type="single"
           variant="outline"
           size="sm"
+          spacing={0}
           value={String(player.speed)}
           onValueChange={(v) => v && player.setSpeed(Number(v) as Speed)}
           aria-label="Speed"
@@ -105,15 +116,17 @@ export function VizTimeline({ player }: { player: Player }) {
             <ToggleGroupItem
               key={s}
               value={String(s)}
-              className="px-2.5 tabular-nums"
+              className="px-2.5 text-xs tabular-nums"
             >
               {s}×
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <p className="hidden text-xs text-muted-foreground sm:block">
-          <Kbd>←</Kbd> <Kbd>→</Kbd> step · <Kbd>Space</Kbd> play
-        </p>
+        {keys && (
+          <p className="hidden text-xs text-muted-foreground sm:block">
+            <Kbd>←</Kbd> <Kbd>→</Kbd> step · <Kbd>Space</Kbd> play
+          </p>
+        )}
       </div>
     </div>
   )

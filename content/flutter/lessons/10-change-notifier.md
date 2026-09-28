@@ -64,7 +64,7 @@ class _CounterPageState extends State<CounterPage> {
 }
 ```
 
-The button never calls `setState` itself. It asks the view model to change, the view model notifies, and the page's listener rebuilds it. Wiring listeners by hand like this works, but it's easy to forget `removeListener`. The next lesson shows the widget that does it for you.
+The button never calls `setState` itself. It asks the view model to change, the view model notifies, and the page's listener rebuilds it. Wiring listeners by hand like this works, but it's easy to forget `removeListener`. The next lesson, **ListenableBuilder**, shows the widget that does it for you.
 
 ## A view model for loading data
 

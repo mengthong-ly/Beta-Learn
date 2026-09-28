@@ -2,7 +2,7 @@
 
 # ThongLearn
 
-Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Dart, Flutter, Claude Code). In the browser: Python via Pyodide, React in a sandboxed iframe, TypeScript/Claude Code via TypeScript 6 in a worker, PHP/Laravel via php-wasm in a worker (`docs/adr/0002-browser-runtimes.md`), C++ via clang in wasm in a worker (`docs/adr/0003-cpp-in-the-browser.md`). Dart and Flutter run on the learner's own toolchains through the local runner (`lib/local-runner.ts`, `/api/run`, `docs/adr/0001-local-runner.md`), only in a local copy: on the website they're write-only, and the website never calls the learner's machine. There is no server-side code execution.
+Programming course app (Python, PHP, Laravel 13, TypeScript, React, C++, Rust, Dart, Flutter, Claude Code). In the browser: Python via Pyodide, React in a sandboxed iframe, TypeScript/Claude Code via TypeScript 6 in a worker, PHP/Laravel via php-wasm in a worker (`docs/adr/0002-browser-runtimes.md`), C++ via clang in wasm in a worker (`docs/adr/0003-cpp-in-the-browser.md`). Rust, Dart and Flutter run on the learner's own toolchains through the local runner (`lib/local-runner.ts`, `/api/run`, `docs/adr/0001-local-runner.md`; Rust: `docs/adr/0005-rust-on-the-local-runner.md`), only in a local copy: on the website they're write-only, and the website never calls the learner's machine. There is no server-side code execution.
 
 Developer docs: `docs/README.md` (index), `docs/adding-a-lesson.md` (step-by-step for new lessons), `docs/architecture.md`, `docs/tech-stack.md`, `docs/runtimes.md`, `docs/content-authoring.md`, `docs/accounts-and-storage.md`. Read the one covering the area you're changing before you start.
 
@@ -38,7 +38,7 @@ Native apps (Capacitor 8, `ios/` and `android/`): the apps load the running Next
   - https://docs.python.org/3/whatsnew/ for behavior specific to 3.14
   - https://peps.python.org/ for the reasons behind a feature
 - Use WebFetch on docs.python.org. Do not rely on memory for semantics, defaults, edge cases or error messages.
-- Other courses: use the official sources listed per course in `.design/thonglearn/research/courses-research.md` (php.net, laravel.com/docs/13.x, typescriptlang.org, react.dev, dart.dev, docs.flutter.dev).
+- Other courses: use the official sources listed per course in `.design/thonglearn/research/courses-research.md` (php.net, laravel.com/docs/13.x, typescriptlang.org, react.dev, doc.rust-lang.org, dart.dev, docs.flutter.dev); Rust's are in `.design/thonglearn/research/rust-research.md`.
 - Add a short "Reference" link to the official page you used at the end of each lesson or guide chapter.
 - After you change content, run `npm run check:content`. Every example must run in real Python.
 
@@ -76,7 +76,7 @@ Before starting a task, find the skill that fits it and invoke it with the Skill
 ## Project gotchas
 
 - Keep `public/python.worker.js` as a plain module worker. Turbopack bundles workers as classic scripts, and Pyodide 314 rejects those.
-- Lesson challenges use fenced blocks named `<lang> starter`, `<lang> solution` and `<lang> check`, where `<lang>` is the course's `lang` in `lib/courses.ts`. A fence in that lang is a runnable example (it gets **Try it** and is checked); use `<lang>-snippet` for fragments. Check helpers per runtime: Python has `__stdout__`; PHP and Laravel have `$output` and `expect()` (Laravel also has `visit()`); TypeScript and Dart have `output`, `expect()` and `lesson.*`; React has `$`, `$$`, `click`, `type`, `tick` and `expect()`; Flutter check blocks are a `testWidgets` body. In the guide, `> 🔍 **Behind the scenes: …**` renders as a collapsible and `> 🧭 **Scenario:**` renders as a card.
+- Lesson challenges use fenced blocks named `<lang> starter`, `<lang> solution` and `<lang> check`, where `<lang>` is the course's `lang` in `lib/courses.ts`. A fence in that lang is a runnable example (it gets **Try it** and is checked); use `<lang>-snippet` for fragments. Check helpers per runtime: Python has `__stdout__`; PHP and Laravel have `$output` and `expect()` (Laravel also has `visit()`); TypeScript and Dart have `output`, `expect()` and `lesson.*`; Rust has `output`, `expect()` and `lesson::*` in a Rust block; React has `$`, `$$`, `click`, `type`, `tick` and `expect()`; Flutter check blocks are a `testWidgets` body. In the guide, `> 🔍 **Behind the scenes: …**` renders as a collapsible and `> 🧭 **Scenario:**` renders as a card.
 - Lesson files are ordered by their numeric prefix (`NN-slug.md`). When you renumber lessons, update every cross-link.
 
 ## Agent skills

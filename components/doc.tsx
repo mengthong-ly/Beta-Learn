@@ -1,6 +1,6 @@
 "use client"
 
-import { Children, isValidElement, useState } from "react"
+import { Children, isValidElement, useMemo, useState } from "react"
 import Link from "next/link"
 import Markdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -14,7 +14,7 @@ import {
 } from "lucide-react"
 
 import { LessonSteps, ReadSentinel } from "@/components/lesson-steps"
-import { PredictOutput } from "@/components/predict-output"
+import { PredictOutput, PredictRun } from "@/components/predict-output"
 import { Quiz } from "@/components/quiz"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,8 +23,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { docHref, storageKey, useWorkspace } from "@/components/workspace-context"
-import { findCourse } from "@/lib/courses"
+import {
+  docHref,
+  docKey,
+  storageKey,
+  useWorkspace,
+} from "@/components/workspace-context"
+import { findCourse, isLanguage } from "@/lib/courses"
 import type { Lesson } from "@/lib/lesson-parser"
 import { useCanRun } from "@/lib/runner"
 import { cn } from "@/lib/utils"
@@ -159,10 +164,13 @@ function GuideContents() {
 
 export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
   const { course, done, tryCode } = useWorkspace()
-  const courseLang = findCourse(course).lang
-  const canRun = useCanRun(findCourse(course))
+  const c = findCourse(course)
+  const courseLang = c.lang
+  const canRun = useCanRun(c)
+  // Predict-then-run is for language courses only; frameworks show examples without it.
+  const predict = isLanguage(c)
 
-  const components: Components = {
+  const components: Components = useMemo(() => ({
     h2: ({ children }) => (
       <h2
         id={slug(String(children))}
@@ -270,13 +278,20 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
           <pre className="overflow-x-auto px-4 pb-4 font-mono text-[13px] leading-relaxed text-foreground">
             {code}
           </pre>
-          {!canRun && lang === courseLang && doc.outputs?.[code.trim()] && (
+          {predict && !canRun && lang === courseLang && doc.outputs?.[code.trim()] && (
             <PredictOutput output={doc.outputs[code.trim()]} />
+          )}
+          {predict && canRun && lang === courseLang && (
+            <PredictRun
+              code={code + "\n"}
+              course={c}
+              lessonId={storageKey(course, docKey(doc))}
+            />
           )}
         </div>
       )
     },
-  }
+  }), [canRun, c, course, courseLang, doc, predict, tryCode])
 
   return (
     <article className="mx-auto max-w-[720px] px-5 pt-8 pb-16 text-[length:var(--reading-size)] leading-[1.6] tracking-[var(--reading-tracking)] text-slate md:px-8 md:pt-10">

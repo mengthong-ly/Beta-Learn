@@ -36,28 +36,41 @@ export function Playground() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <nav
           aria-label="Demos"
-          className="shrink-0 border-b lg:w-52 lg:overflow-y-auto lg:border-r lg:border-b-0"
+          className="shrink-0 border-b lg:w-60 lg:overflow-y-auto lg:border-r lg:border-b-0"
         >
-          <ol className="flex gap-1 overflow-x-auto p-2 lg:flex-col">
-            {DEMOS.map((d, i) => (
-              <li key={d.id} className="shrink-0">
-                <Link
-                  href={`/visualize?demo=${d.id}`}
-                  replace
-                  scroll={false}
-                  aria-current={d.id === demo.id ? "page" : undefined}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm whitespace-nowrap text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-                    d.id === demo.id && "bg-accent font-medium text-foreground"
-                  )}
-                >
-                  <span className="w-4 text-right font-mono text-[11px] tabular-nums opacity-70">
-                    {i + 1}
-                  </span>
-                  {d.title}
-                </Link>
-              </li>
-            ))}
+          <ol className="flex gap-0.5 overflow-x-auto p-2 lg:flex-col lg:p-3">
+            {DEMOS.map((d, i) => {
+              const current = d.id === demo.id
+              return (
+                <li key={d.id} className="shrink-0 lg:shrink">
+                  <Link
+                    href={`/visualize?demo=${d.id}`}
+                    replace
+                    scroll={false}
+                    aria-current={current ? "page" : undefined}
+                    className={cn(
+                      // nowrap in the horizontal strip on small screens; wraps in the column
+                      "flex items-baseline gap-2.5 rounded-md px-2 py-1.5 text-left text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:whitespace-normal",
+                      current
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-3.5 shrink-0 text-right font-mono text-[11px] tabular-nums",
+                        current
+                          ? "text-(--iso-accent)"
+                          : "text-muted-foreground/60"
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                    {d.title}
+                  </Link>
+                </li>
+              )
+            })}
           </ol>
         </nav>
         <DemoView key={demo.id} demo={demo} />

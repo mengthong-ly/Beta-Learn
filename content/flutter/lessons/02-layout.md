@@ -126,6 +126,54 @@ void main() {
 
 💡 **Tip:** since Dart 3.10 you can write `.center` instead of `MainAxisAlignment.center` when the type is already known. These are called dot shorthands.
 
+## Constraints go down, sizes go up
+
+Every layout in Flutter follows one rule: **constraints go down, sizes go up, and the parent sets the position.** A parent tells each child the minimum and maximum width and height it may use. The child picks a size inside those limits and reports it back up, and the parent then decides where to put it.
+
+Most layout errors come from a child that gets no maximum at all. Along its main axis a `Column` lets its children be as tall as they like, but a `ListView` scrolls, so it wants to be as tall as possible. Put one inside the other and there's no size to settle on:
+
+```dart
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(
+    MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            const Text('Messages'),
+            ListView(children: const [Text('Hi'), Text('Hello')]), // error! unbounded height
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+Flutter reports that a vertical viewport was given unbounded height. The fix is the widget from the last section: wrap the `ListView` in `Expanded`, so the `Column` hands it exactly the space that's left.
+
+```dart
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(
+    MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            const Text('Messages'),
+            Expanded(child: ListView(children: const [Text('Hi'), Text('Hello')])),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+`Flexible` works the same way but lets its child be *smaller* than its share, while `Expanded` forces the child to fill it.
+
 ## Challenge
 
 > 🎯 **Challenge:** Split the screen width so the `Left` panel gets one third and the `Right` panel two thirds. Wrap each panel in an `Expanded` and give them the right `flex`.
@@ -183,4 +231,4 @@ void main() {
         reason: 'Right should be twice as wide as Left');
 ```
 
-**Reference:** [Layout widgets on a screen](https://docs.flutter.dev/learn/pathway/tutorial/layout) in the Flutter learning pathway, and [Layouts in Flutter](https://docs.flutter.dev/ui/layout).
+**Reference:** [Layout widgets on a screen](https://docs.flutter.dev/learn/pathway/tutorial/layout) in the Flutter learning pathway, [Layouts in Flutter](https://docs.flutter.dev/ui/layout) and [Understanding constraints](https://docs.flutter.dev/ui/layout/constraints).

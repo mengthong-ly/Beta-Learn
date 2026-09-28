@@ -50,8 +50,9 @@ function toTraced(
 }
 
 /**
- * Records the learner's code and replays it in the isometric visualizer. Traces on first
- * open (per lesson); after an edit it offers "trace again" instead of re-running on its own.
+ * Records the learner's code and replays it in the isometric visualizer. Traces when the
+ * tab opens on code it has no recording of; while it's open an edit offers "trace again"
+ * instead of re-running on its own.
  */
 export function VisualizePane({
   code,
@@ -64,7 +65,9 @@ export function VisualizePane({
   runtime: TraceRuntime
   onLine: (line?: number) => void
 }) {
-  const fresh = last?.doc === docKey ? last : undefined
+  // Keyed by the code too, so opening the tab after a run with new code re-records
+  // instead of replaying the old program.
+  const fresh = last?.doc === docKey && last.code === code ? last : undefined
   const [result, setResult] = useState(fresh)
   const [busy, setBusy] = useState(!fresh)
 

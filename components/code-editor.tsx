@@ -62,12 +62,12 @@ const defineThemes: BeforeMount = (monaco) => {
     ],
     colors: {
       ...common,
-      "editor.background": "#191919",
-      "editor.foreground": "#e3e2e0",
-      "editorLineNumber.foreground": "#5a5a58",
-      "editor.lineHighlightBackground": "#202020",
+      "editor.background": "#0b1511",
+      "editor.foreground": "#e6eee9",
+      "editorLineNumber.foreground": "#4d6158",
+      "editor.lineHighlightBackground": "#0f1b16",
       "editor.selectionBackground": "#264f78",
-      "editorIndentGuide.background1": "#2f2f2f",
+      "editorIndentGuide.background1": "#1f3029",
     },
   })
 }

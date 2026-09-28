@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -376,6 +376,19 @@ export function Workspace({
     )
   }
 
+  // The context value must not change identity on every render: Doc rebuilds its
+  // react-markdown `components` map from it, and a new `pre` identity remounts the whole
+  // lesson body — destroying any state in it (a half-typed prediction) on every run.
+  const tryCodeRef = useRef(tryCode)
+  useEffect(() => {
+    tryCodeRef.current = tryCode
+  })
+  const stableTryCode = useCallback((c: string) => tryCodeRef.current(c), [])
+  const workspace = useMemo(
+    () => ({ course, lessons, guide, done, tryCode: stableTryCode }),
+    [course, lessons, guide, done, stableTryCode]
+  )
+
   const editor = (
     <div className="flex h-full flex-col">
       <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-3">
@@ -567,9 +580,7 @@ export function Workspace({
   )
 
   return (
-    <WorkspaceContext.Provider
-      value={{ course, lessons, guide, done, tryCode }}
-    >
+    <WorkspaceContext.Provider value={workspace}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar
           current={key}
