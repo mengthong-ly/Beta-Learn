@@ -9,7 +9,8 @@
 // (lib/local-runner.ts, needs `npm run setup:runtimes`). React is transpiled and server-rendered.
 // Examples are fences in the course's language (```php); use ```php-snippet for code that isn't
 // a whole runnable program.
-// Usage: npm run check:content [-- course ...]    e.g. npm run check:content -- php dart
+// Usage: npm run check:content [-- course ... [file.md ...]]    e.g. npm run check:content -- php dart
+//        (with file names, only those files run: npm run check:content -- rust 03-variables.md)
 import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
@@ -219,7 +220,9 @@ async function executor(c: Course): Promise<Execute> {
 // --record saves each example's and solution's real output for the courses the website can't run
 // (Flutter prints nothing worth showing), so write-only lessons can show it.
 const record = process.argv.includes("--record")
-const only = process.argv.slice(2).filter((a) => a !== "--record")
+const args = process.argv.slice(2).filter((a) => a !== "--record")
+const only = args.filter((a) => !a.endsWith(".md"))
+const picked = args.filter((a) => a.endsWith(".md"))
 let failed = 0
 for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
   const execute = await executor(c)
@@ -240,7 +243,7 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
     let files: string[]
     try {
       files = readdirSync(folder)
-        .filter((f) => f.endsWith(".md"))
+        .filter((f) => f.endsWith(".md") && (!picked.length || picked.includes(f)))
         .sort()
     } catch {
       continue // the guide is optional
@@ -294,7 +297,7 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
       for (const q of l.quiz ?? []) {
         if (!q.code) continue
         const want = q.options[q.answer].trim()
-        // ponytail: Python and C++ only; add the others (PHP $output, TS/Dart output)
+        // ponytail: Python, C++ and Rust only; add the others (PHP $output, TS/Dart output)
         // when those courses get quizzes.
         const assertOutput =
           c.runtime === "pyodide"
@@ -307,9 +310,12 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
     const std::size_t last = all.find_last_not_of(space);
     all.erase(last == std::string::npos ? 0 : last + 1);
     expect(all == ${JSON.stringify(want)}, "printed " + all);`
-              : undefined
+              : c.id === "rust"
+                ? `        let all = output.join("\\n");
+        expect(all.trim() == ${JSON.stringify(want)}, format!("printed {all}"));`
+                : undefined
         if (!assertOutput) {
-          problems.push("quiz code questions are only verified for Python and C++ so far")
+          problems.push("quiz code questions are only verified for Python, C++ and Rust so far")
           break
         }
         const r = await execute(q.code, assertOutput)
@@ -322,7 +328,8 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
       failed += problems.length ? 1 : 0
     }
   }
-  if (record && recorded) writeOutputs(c.id, fresh)
+  // A file filter records only those files, so keep everyone else's recordings.
+  if (record && recorded) writeOutputs(c.id, picked.length ? { ...outputs, ...fresh } : fresh)
 }
 console.log(failed ? `\n${failed} file(s) failed` : "\nAll content passes")
 process.exit(failed ? 1 : 0)

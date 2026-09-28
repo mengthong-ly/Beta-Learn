@@ -8,10 +8,11 @@ export type Speed = (typeof SPEEDS)[number]
 /**
  * Timeline state for a demo with `count` steps. `index` is a frame index: 0 is before the
  * first step, count is after the last. `forward` tells the renderer whether to play the
- * step's flights (stepping back just rewinds the state).
+ * step's flights (stepping back just rewinds the state). `startAt` opens on a frame
+ * other than the beginning — remount (a new `key`) to start somewhere else again.
  */
-export function usePlayer(count: number) {
-  const [pos, setPos] = useState({ index: 0, forward: true })
+export function usePlayer(count: number, startAt = 0) {
+  const [pos, setPos] = useState({ index: startAt, forward: true })
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>(1)
 

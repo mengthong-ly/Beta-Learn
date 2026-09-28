@@ -42,6 +42,7 @@ export async function requirements(): Promise<Requirement[]> {
     sandbox: true,
   })
   const rows: [LocalCourse, Item[]][] = [
+    ["rust", [tool("Rust", t.rust, "≥ 1.90", "1.90")]],
     ["dart", [tool("Dart", t.dart, "≥ 3.13", "3.13")]],
     [
       "flutter",

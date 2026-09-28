@@ -78,17 +78,23 @@
 
 /* Brand palette (uicolors.app). Utilities: bg-salem-500, text-pine-green-700, … */
 @theme {
+  /* Motion. The built-in easings are too soft to read as intentional, so the
+     page uses two curves: `glide` for anything entering or settling, `swift`
+     for something already on screen moving to a new place. */
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-swift: cubic-bezier(0.77, 0, 0.175, 1);
+
   --color-salem-50: oklch(98.28% 0.03 158.15);
   --color-salem-100: oklch(96.19% 0.06 158.15);
-  --color-salem-200: oklch(93.20% 0.11 156.67);
+  --color-salem-200: oklch(93.2% 0.11 156.67);
   --color-salem-300: oklch(89.69% 0.18 154.04);
-  --color-salem-400: oklch(87.60% 0.24 149.76);
+  --color-salem-400: oklch(87.6% 0.24 149.76);
   --color-salem-500: oklch(83.81% 0.24 147.83);
   --color-salem-600: oklch(73.18% 0.21 148.05);
   --color-salem-700: oklch(61.02% 0.17 148.54);
   --color-salem-800: oklch(52.96% 0.15 148.99);
   --color-salem-900: oklch(44.34% 0.12 150.41);
-  --color-salem-950: oklch(30.20% 0.08 152.83);
+  --color-salem-950: oklch(30.2% 0.08 152.83);
 
   --color-pine-green-50: oklch(98.54% 0.02 177.37);
   --color-pine-green-100: oklch(95.47% 0.06 178.02);
@@ -96,8 +102,8 @@
   --color-pine-green-300: oklch(89.94% 0.16 176.04);
   --color-pine-green-400: oklch(87.75% 0.16 175.71);
   --color-pine-green-500: oklch(79.98% 0.15 177.09);
-  --color-pine-green-600: oklch(68.40% 0.12 179.73);
-  --color-pine-green-700: oklch(57.69% 0.10 181.13);
+  --color-pine-green-600: oklch(68.4% 0.12 179.73);
+  --color-pine-green-700: oklch(57.69% 0.1 181.13);
   --color-pine-green-800: oklch(51.41% 0.09 182.84);
   --color-pine-green-900: oklch(42.41% 0.07 183.13);
   --color-pine-green-950: oklch(30.72% 0.05 188.94);
@@ -105,20 +111,21 @@
   --color-rusty-nail-50: oklch(99.24% 0.03 108.76);
   --color-rusty-nail-100: oklch(98.18% 0.09 109.99);
   --color-rusty-nail-200: oklch(97.35% 0.15 109.35);
-  --color-rusty-nail-300: oklch(95.44% 0.20 107.41);
-  --color-rusty-nail-400: oklch(92.89% 0.20 103.60);
+  --color-rusty-nail-300: oklch(95.44% 0.2 107.41);
+  --color-rusty-nail-400: oklch(92.89% 0.2 103.6);
   --color-rusty-nail-500: oklch(90.87% 0.19 99.86);
   --color-rusty-nail-600: oklch(79.98% 0.16 90.93);
   --color-rusty-nail-700: oklch(64.36% 0.13 81.03);
-  --color-rusty-nail-800: oklch(53.79% 0.11 73.70);
-  --color-rusty-nail-900: oklch(47.28% 0.10 68.41);
+  --color-rusty-nail-800: oklch(53.79% 0.11 73.7);
+  --color-rusty-nail-900: oklch(47.28% 0.1 68.41);
   --color-rusty-nail-950: oklch(31.88% 0.07 66.66);
 }
 
 /* UI/reading font, switchable from the Appearance menu. Code always uses --font-mono. */
 :root,
 [data-font="mono"] {
-  --font-ui: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
   --reading-size: 15px;
   --reading-tracking: 0;
 }
@@ -180,13 +187,15 @@
   --tint-rose: #fde0ec;
   --tint-yellow: #fef7d6;
 
-  /* Isometric visualizer (components/viz): white faces, hairline outlines, one accent. */
+  /* Isometric visualizer (components/viz): white faces, hairline outlines, one accent.
+     Faces carry the form by value (top lightest, right darkest); the outline is a hairline
+     that describes an edge, not an ink border, so it sits well under the face contrast. */
   --iso-top: #ffffff;
-  --iso-left: color-mix(in oklab, #37352f 5%, #ffffff);
-  --iso-right: color-mix(in oklab, #37352f 11%, #ffffff);
-  --iso-stroke: color-mix(in oklab, #37352f 78%, transparent);
-  --iso-shadow: rgb(55 53 47 / 0.14);
-  --iso-grid: color-mix(in oklab, #37352f 7%, transparent);
+  --iso-left: color-mix(in oklab, #37352f 7%, #ffffff);
+  --iso-right: color-mix(in oklab, #37352f 15%, #ffffff);
+  --iso-stroke: color-mix(in oklab, #37352f 50%, transparent);
+  --iso-shadow: rgb(55 53 47 / 0.1);
+  --iso-grid: color-mix(in oklab, #37352f 5%, transparent);
   --iso-edge: color-mix(in oklab, #37352f 38%, transparent);
   --iso-accent: var(--color-salem-800);
   --iso-accent-soft: color-mix(in oklab, var(--color-salem-600) 22%, #ffffff);
@@ -241,12 +250,12 @@
   --tint-rose: rgb(255 100 200 / 0.14);
   --tint-yellow: rgb(245 215 94 / 0.14);
 
-  --iso-top: #2a2a2a;
-  --iso-left: #232323;
+  --iso-top: #2d2d2d;
+  --iso-left: #252525;
   --iso-right: #1c1c1c;
-  --iso-stroke: color-mix(in oklab, #e3e2e0 62%, transparent);
-  --iso-shadow: rgb(0 0 0 / 0.45);
-  --iso-grid: color-mix(in oklab, #e3e2e0 6%, transparent);
+  --iso-stroke: color-mix(in oklab, #e3e2e0 42%, transparent);
+  --iso-shadow: rgb(0 0 0 / 0.4);
+  --iso-grid: color-mix(in oklab, #e3e2e0 5%, transparent);
   --iso-edge: color-mix(in oklab, #e3e2e0 34%, transparent);
   --iso-accent: var(--color-salem-500);
   --iso-accent-soft: color-mix(in oklab, var(--color-salem-500) 26%, #2a2a2a);
@@ -276,6 +285,24 @@
       "calt" 0,
       "liga" 0;
     scrollbar-color: var(--border) transparent;
+  }
+  /* Surfaces the browser draws for us, themed rather than left at their
+     defaults: the selection wash, the caret in every input and editor, and the
+     gap under a link's underline. */
+  ::selection {
+    background: color-mix(in oklab, var(--color-salem-600) 28%, transparent);
+    color: var(--foreground);
+  }
+  :root {
+    caret-color: var(--color-salem-700);
+    accent-color: var(--color-salem-700);
+  }
+  .dark {
+    caret-color: var(--color-salem-500);
+    accent-color: var(--color-salem-500);
+  }
+  a {
+    text-underline-offset: 0.2em;
   }
 }
 
@@ -339,22 +366,524 @@
   }
 }
 
-/* Landing light rays (app/page.tsx). --o is each beam's peak opacity. */
-.animate-ray {
-  opacity: var(--o);
-  animation: ray 7s ease-in-out infinite;
+/* ── Landing (app/page.tsx) ──────────────────────────────────────────────── */
+
+/* Materials. Three recipes the page draws from, so no surface invents its own
+   shadow. Glass is only for layers that genuinely sit above something — the
+   floating nav, the hero's controls, the editor chrome — and the paint lives in
+   custom properties so a pseudo-element can wear the same glass as a class.
+   `.raised`/`.pressed` are the soft-extruded pair, and they only ever wrap a
+   control: no text reads off an embossed surface. */
+:root {
+  --glass-fill: color-mix(in oklab, var(--background) 62%, transparent);
+  --glass-line: color-mix(in oklab, var(--foreground) 11%, transparent);
+  --glass-sheen: color-mix(in oklab, #fff 65%, transparent);
+  --glass-cast:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 14px 34px -14px rgb(0 0 0 / 0.18);
+
+  --raised-face: linear-gradient(
+    to bottom,
+    #fff,
+    color-mix(in oklab, #fff 35%, var(--secondary))
+  );
+  --raised-cast:
+    inset 0 1px 0 #fff, 0 1px 1px rgb(0 0 0 / 0.05),
+    0 5px 12px -5px rgb(0 0 0 / 0.14);
+  --pressed-cast: inset 0 2px 5px rgb(0 0 0 / 0.1), inset 0 -1px 0 #fff;
 }
-@keyframes ray {
-  50% {
-    opacity: calc(var(--o) * 0.35);
+.dark {
+  --glass-fill: color-mix(in oklab, var(--background) 52%, transparent);
+  --glass-line: color-mix(in oklab, #fff 13%, transparent);
+  --glass-sheen: color-mix(in oklab, #fff 9%, transparent);
+  --glass-cast: 0 1px 2px rgb(0 0 0 / 0.5), 0 18px 44px -16px rgb(0 0 0 / 0.7);
+
+  --raised-face: linear-gradient(to bottom, #2e2e2e, #232323);
+  --raised-cast:
+    inset 0 1px 0 rgb(255 255 255 / 0.07), 0 1px 1px rgb(0 0 0 / 0.4),
+    0 5px 12px -5px rgb(0 0 0 / 0.6);
+  --pressed-cast:
+    inset 0 2px 6px rgb(0 0 0 / 0.55), inset 0 -1px 0 rgb(255 255 255 / 0.05);
+}
+
+.glass {
+  background: var(--glass-fill);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 var(--glass-sheen),
+    0 0 0 1px var(--glass-line),
+    var(--glass-cast);
+}
+
+/* Controls only. The face carries the extrusion; the label keeps the token
+   foreground, so contrast never depends on the shading. */
+.raised {
+  background: var(--raised-face);
+  box-shadow:
+    0 0 0 1px var(--glass-line),
+    var(--raised-cast);
+  transition:
+    transform 160ms var(--ease-glide),
+    box-shadow 160ms var(--ease-glide);
+}
+@media (hover: hover) and (pointer: fine) {
+  .raised:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px var(--glass-line),
+      inset 0 1px 0 #fff,
+      0 2px 3px rgb(0 0 0 / 0.05),
+      0 12px 24px -8px rgb(0 0 0 / 0.18);
+  }
+  .dark .raised:hover {
+    box-shadow:
+      0 0 0 1px var(--glass-line),
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      0 2px 3px rgb(0 0 0 / 0.4),
+      0 14px 28px -10px rgb(0 0 0 / 0.7);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .animate-ray {
-    animation: none;
+.raised:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow:
+    0 0 0 1px var(--glass-line),
+    var(--pressed-cast);
+}
+
+/* The other half of the pair: a well pressed into the face. Marks and badges
+   sit in it, never body copy — the shading is depth, not contrast. */
+.inset {
+  background: color-mix(in oklab, var(--foreground) 7%, var(--secondary));
+  box-shadow: var(--pressed-cast);
+}
+.dark .inset {
+  background: color-mix(in oklab, #000 34%, var(--secondary));
+}
+
+/* The hero canvas: an abstract lit horizon in the brand green. Pure CSS, so it
+   scales to any viewport and follows the theme without shipping a second asset.
+
+   It opens full-bleed and shrinks into an inset card over the first stretch of
+   scroll. The inset is a clip-path, not a margin, so the shrink costs no layout
+   and nothing below the hero reflows on a scroll frame. The timeline is pinned
+   to `root`: the hero's own `overflow: hidden` makes it a scroll container, so
+   a bare `scroll()` would latch onto the hero and never advance. */
+.hero-surface {
+  --hero-inset: 16px;
+  --hero-round: 28px;
+  clip-path: inset(
+    calc(var(--hero-t, 0) * var(--hero-inset)) round
+      calc(var(--hero-t, 0) * var(--hero-round))
+  );
+  background-color: var(--color-salem-50);
+  background-image:
+    /* near hill */
+    radial-gradient(
+      78% 56% at 76% 114%,
+      color-mix(in oklab, var(--color-salem-700) 86%, var(--foreground)) 0 62%,
+      transparent 64%
+    ),
+    /* far hill */
+    radial-gradient(
+        72% 52% at 18% 110%,
+        color-mix(in oklab, var(--color-salem-500) 88%, var(--foreground)) 0 60%,
+        transparent 62%
+      ),
+    /* haze along the horizon */
+    radial-gradient(
+        100% 55% at 50% 100%,
+        color-mix(in oklab, var(--color-salem-300) 70%, transparent) 0%,
+        transparent 72%
+      ),
+    /* sky */
+    linear-gradient(
+        to bottom,
+        var(--color-pine-green-100),
+        var(--color-salem-50) 58%
+      );
+}
+.dark .hero-surface {
+  background-color: #08080a;
+  background-image:
+    radial-gradient(
+      78% 56% at 76% 114%,
+      oklch(26% 0.06 150) 0 62%,
+      transparent 64%
+    ),
+    radial-gradient(
+      72% 52% at 18% 110%,
+      oklch(33% 0.07 150) 0 60%,
+      transparent 62%
+    ),
+    radial-gradient(
+      100% 55% at 50% 102%,
+      color-mix(in oklab, var(--color-salem-700) 32%, transparent) 0%,
+      transparent 72%
+    ),
+    linear-gradient(to bottom, #0c120f, #08080a 58%);
+}
+
+/* The hero pins to the top for exactly the shrink distance, then releases and
+   scrolls away normally. `sticky` does the pinning; the runway is the scroll it
+   eats, and its extra height must equal the distance --hero-t is spread over.
+   Both come from DISTANCE in hero-shrink.tsx, which also sets the data
+   attribute — so the runway only grows once something can drive the shrink. */
+.hero-runway {
+  height: auto;
+}
+[data-hero-shrink] .hero-runway {
+  height: calc(100svh + var(--hero-shrink, 340px));
+}
+
+/* The copy hands the page off while the hero is still pinned: it lifts and
+   dims as the canvas closes, so the shrink reads as a transition rather than a
+   resize. Transform and opacity only, both driven by the variable that is
+   already updating this frame. */
+.hero-copy {
+  transform: translate3d(0, calc(var(--hero-t, 0) * -2rem), 0);
+  opacity: calc(1 - var(--hero-t, 0) * 0.4);
+}
+
+/* A fine grid over the sky only. It fades before it reaches the hills, and a
+   radial pass dissolves it at the sides so it never ends on a straight edge. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, currentColor 1px, transparent 1px),
+    linear-gradient(to bottom, currentColor 1px, transparent 1px);
+  background-size: 56px 56px;
+  color: color-mix(in oklab, var(--color-salem-950) 8%, transparent);
+  mask-image:
+    linear-gradient(to bottom, #000 0%, transparent 62%),
+    radial-gradient(80% 65% at 50% 22%, #000 35%, transparent 100%);
+  mask-composite: intersect;
+}
+.dark .hero-grid {
+  color: rgb(255 255 255 / 0.05);
+}
+
+/* The slow light that keeps the hero alive: a warm disc drifting over the sky,
+   and a cooler one crossing the other way on a longer period, so the two never
+   settle into a visible loop. Gradients, not blur filters — the same look for
+   none of the per-frame cost. */
+.hero-sun,
+.hero-drift {
+  will-change: transform;
+}
+.hero-sun {
+  top: -14rem;
+  right: -10rem;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-rusty-nail-300) 55%, transparent),
+    transparent
+  );
+  animation: hero-sun 22s ease-in-out infinite alternate;
+}
+.dark .hero-sun {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-salem-500) 16%, transparent),
+    transparent
+  );
+}
+.hero-drift {
+  top: 18%;
+  left: -14rem;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-pine-green-400) 38%, transparent),
+    transparent
+  );
+  animation: hero-drift 34s ease-in-out infinite alternate;
+}
+.dark .hero-drift {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-pine-green-600) 20%, transparent),
+    transparent
+  );
+}
+@keyframes hero-sun {
+  to {
+    transform: translate3d(-6rem, 4rem, 0) scale(1.15);
+  }
+}
+@keyframes hero-drift {
+  to {
+    transform: translate3d(8rem, -5rem, 0) scale(1.2);
   }
 }
 
+/* The nav materialises out of the hero rather than sitting on top of it: the
+   glass is a pseudo-element, so it scales and fades on the compositor while the
+   links never move a pixel. --hero-t comes from hero-shrink.tsx; the fallback
+   is 1, so without JS the nav is simply always there. */
+.nav-morph::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass-fill);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 var(--glass-sheen),
+    0 0 0 1px var(--glass-line),
+    var(--glass-cast);
+  opacity: var(--hero-t, 1);
+  transform: scale(calc(0.9 + 0.1 * var(--hero-t, 1)));
+}
+
+/* The headline arrives a word at a time. Delays are set per word in the JSX so
+   the stagger follows the copy instead of a magic nth-child list. */
+.word {
+  display: inline-block;
+  animation: word-rise 900ms var(--ease-glide) both;
+}
+@keyframes word-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em);
+    filter: blur(10px);
+  }
+}
+
+/* The typing caret in the hero editor (components/landing/typing-code.tsx). */
+.caret {
+  animation: caret 1.1s steps(1) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Scroll reveal, driven by the scroller itself — no observer, no JS. Browsers
+   without scroll-driven animations simply show the element, already styled.
+   The range ends inside `entry`, not `cover`: an element near the end of the
+   document never earns enough `cover` progress and would stay half-faded. */
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 85%;
+  }
+
+  /* The section heading is uncovered rather than faded in — a mask sweeps left
+     to right as it enters, which reads as type being set instead of one more
+     block arriving. */
+  .wipe {
+    animation: wipe linear both;
+    animation-timeline: view();
+    animation-range: entry 15% entry 80%;
+  }
+
+  /* The rule beside each answer draws itself as the item arrives, so the list
+     resolves in two beats instead of one. */
+  .rule-grow {
+    transform-origin: left center;
+    animation: rule-grow linear both;
+    animation-timeline: view();
+    animation-range: entry 35% entry 95%;
+  }
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+    filter: blur(6px);
+  }
+}
+@keyframes wipe {
+  from {
+    opacity: 0;
+    mask-image: linear-gradient(to right, #000 -30%, transparent 0%);
+  }
+  to {
+    opacity: 1;
+    mask-image: linear-gradient(to right, #000 130%, transparent 160%);
+  }
+}
+@keyframes rule-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* The landing speaks in a sans; code, labels and numbers keep --font-mono.
+   The app's own pages still follow the Appearance menu. */
+.landing {
+  --font-ui: "Google Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
+}
+
+/* The lit words in the headline. Clipped per word, since each word animates
+   on its own. */
+.text-accent-gradient {
+  background: linear-gradient(
+    100deg,
+    var(--color-salem-800),
+    var(--color-pine-green-700)
+  );
+  background-clip: text;
+  color: transparent;
+}
+.dark .text-accent-gradient {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-salem-400),
+    var(--color-pine-green-300)
+  );
+}
+
+/* Runtime strip: two copies of the list slide by exactly one copy's width. */
+.marquee {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+}
+.marquee-track {
+  width: max-content;
+  animation: marquee 45s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Where a feature card's picture sits: a dot grid, lit from the top. */
+.feature-stage {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      70% 60% at 50% 0%,
+      color-mix(in oklab, var(--color-salem-300) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      color-mix(in oklab, var(--foreground) 9%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    100% 100%,
+    16px 16px;
+}
+.dark .feature-stage {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      70% 60% at 50% 0%,
+      color-mix(in oklab, var(--color-salem-700) 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px);
+}
+
+/* The step cards' stage, and the two dark bands: the hero's green horizon,
+   seen at night. Fixed colours, dark in both themes. */
+.step-stage {
+  background:
+    radial-gradient(
+      90% 80% at 20% 0%,
+      color-mix(in oklab, var(--color-salem-600) 55%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      80% 90% at 100% 100%,
+      color-mix(in oklab, var(--color-pine-green-600) 60%, transparent),
+      transparent 70%
+    ),
+    #0b1511;
+}
+.band-dark {
+  background:
+    radial-gradient(
+      60% 40% at 50% 0%,
+      color-mix(in oklab, var(--color-salem-700) 40%, transparent),
+      transparent 75%
+    ),
+    radial-gradient(
+      50% 40% at 0% 100%,
+      color-mix(in oklab, var(--color-pine-green-800) 45%, transparent),
+      transparent 75%
+    ),
+    #0b1511;
+}
+.band-cta {
+  background:
+    radial-gradient(
+      70% 70% at 50% 110%,
+      color-mix(in oklab, var(--color-salem-600) 55%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      60% 60% at 100% 0%,
+      color-mix(in oklab, var(--color-pine-green-700) 60%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(to bottom, #0b1511, oklch(30% 0.07 155));
+}
+.band-cta .hero-grid {
+  color: rgb(255 255 255 / 0.07);
+}
+
+.stat-number {
+  background: linear-gradient(
+    to bottom,
+    #fff 30%,
+    var(--color-salem-300)
+  );
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .marquee-track > [aria-hidden] {
+    display: none;
+  }
+  .marquee-track > ul {
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.75rem;
+    padding-inline: 1.25rem;
+  }
+  .marquee {
+    mask-image: none;
+  }
+  .hero-sun,
+  .hero-drift,
+  .caret,
+  .word,
+  .reveal,
+  .wipe,
+  .rule-grow {
+    animation: none;
+  }
+  /* --hero-t settles at 1 under reduced motion, so the scroll-linked pieces
+     have to be told to stay at their resting values instead of reading it. */
+  .hero-copy {
+    transform: none;
+    opacity: 1;
+  }
+  .nav-morph::before {
+    opacity: 1;
+    transform: none;
+  }
+}
 /* Visualizer canvas (components/viz): React Flow's base.css plus our tokens. */
 .viz-flow {
   --xy-background-color: var(--iso-floor);
@@ -373,13 +902,35 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--card);
+  box-shadow: 0 1px 2px var(--iso-shadow);
+  opacity: 0.6;
+  transition: opacity 200ms ease;
+}
+.viz-flow:hover .react-flow__controls,
+.viz-flow .react-flow__controls:focus-within {
+  opacity: 1;
 }
 .viz-flow .react-flow__controls-button {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   color: var(--muted-foreground);
+}
+.viz-flow .react-flow__controls-button + .react-flow__controls-button {
+  border-top: 1px solid var(--border);
+}
+/* Hairlines stay exactly 1px at any zoom, so edges read drawn rather than rendered. */
+.viz-flow .react-flow__node svg *,
+.viz-flow .react-flow__edge path {
+  vector-effect: non-scaling-stroke;
+}
+/* The floor fades out at the panel edges instead of stopping at a hard line. */
+.viz-flow .react-flow__background {
+  mask-image:
+    linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent),
+    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-composite: intersect;
 }
 .viz-flow .react-flow__controls-button:hover {
   background: var(--accent);

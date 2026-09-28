@@ -47,7 +47,7 @@ class _NameFormState extends State<NameForm> {
                 return null;
               },
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -152,7 +152,7 @@ class _EmailFormState extends State<EmailForm> {
       child: Column(
         children: [
           TextFormField(decoration: const InputDecoration(labelText: 'Email')),
-          ElevatedButton(
+          FilledButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Signed up')),
@@ -195,7 +195,7 @@ class _EmailFormState extends State<EmailForm> {
             validator: (value) =>
                 value == null || !value.contains('@') ? 'Enter an email' : null,
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () {
               if (_formKey.currentState!.validate()) {
                 ScaffoldMessenger.of(context).showSnackBar(

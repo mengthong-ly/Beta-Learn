@@ -42,6 +42,7 @@ export const courses = [
     file: "lesson.php",
     comment: "//",
     hello: "<?php\n\nuse Illuminate\\Support\\Str;\n\necho Str::of('hello, laravel')->title(), PHP_EOL;\n",
+    framework: true,
   },
   {
     id: "typescript",
@@ -64,6 +65,7 @@ export const courses = [
     file: "App.tsx",
     comment: "//",
     hello: 'export default function App() {\n  return <h1>Hello, React!</h1>\n}\n',
+    framework: true,
   },
   {
     id: "cpp",
@@ -75,6 +77,17 @@ export const courses = [
     file: "main.cpp",
     comment: "//",
     hello: '#include <iostream>\n\nint main() {\n  std::cout << "Hello, C++!" << std::endl;\n}\n',
+  },
+  {
+    id: "rust",
+    name: "Rust",
+    mark: "Rs",
+    tagline: "Ownership, traits and fearless concurrency, compiled by your own rustc.",
+    runtime: "local",
+    lang: "rust",
+    file: "main.rs",
+    comment: "//",
+    hello: 'fn main() {\n    println!("Hello, Rust!");\n}\n',
   },
   {
     id: "dart",
@@ -97,6 +110,7 @@ export const courses = [
     file: "main.dart",
     comment: "//",
     hello: "import 'package:flutter/material.dart';\n\nvoid main() {\n  runApp(\n    const MaterialApp(\n      home: Scaffold(body: Center(child: Text('Hello, Flutter!'))),\n    ),\n  );\n}\n",
+    framework: true,
   },
   {
     // extra: listed apart from the language courses on Home and in the course switcher.
@@ -115,6 +129,9 @@ export const courses = [
 
 /** Is this one of the extra (non-language) courses? */
 export const isExtra = (c: Course) => "extra" in c && c.extra
+
+/** Is this a programming-language course (not a framework like Laravel, React or Flutter, and not extra)? */
+export const isLanguage = (c: Course) => !("framework" in c) && !isExtra(c)
 
 export type Course = (typeof courses)[number]
 export type CourseId = Course["id"]

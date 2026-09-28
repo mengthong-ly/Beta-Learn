@@ -50,7 +50,7 @@ export function ArrayNode({ data }: NodeProps<Node<ArrayData, "array">>) {
             exit={{ opacity: 0 }}
             transition={{ duration: dur(0.35), ease: EASE }}
           >
-            <IsoPlatform box={g.plate} title={data.name} />
+            <IsoPlatform box={g.plate} slots={n} title={data.name} />
 
             {data.loop && n > 1 && (
               <LoopPath

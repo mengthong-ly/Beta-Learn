@@ -18,12 +18,24 @@ import { EASE, useDur } from "./timing"
 
 export type Tone = "neutral" | "accent" | "changed" | "ghost"
 
-const FILL: Record<Tone, [top: string, left: string, right: string]> = {
+export const FACE_FILL: Record<
+  Tone,
+  [top: string, left: string, right: string]
+> = {
   neutral: ["var(--iso-top)", "var(--iso-left)", "var(--iso-right)"],
   accent: ["var(--iso-accent-soft)", "var(--iso-left)", "var(--iso-right)"],
   changed: ["var(--iso-changed)", "var(--iso-left)", "var(--iso-right)"],
   ghost: ["transparent", "transparent", "transparent"],
 }
+
+/** The one hairline every face is outlined with. */
+export const hairline = (dashed = false) => ({
+  stroke: "var(--iso-stroke)",
+  strokeWidth: 1,
+  strokeLinejoin: "round" as const,
+  strokeDasharray: dashed ? "3 3" : undefined,
+  transition: "fill 240ms ease",
+})
 
 /**
  * The base 2.5D shape: three faces, hairline outline, soft ground shadow.
@@ -41,14 +53,8 @@ export function IsoBox({
   dashed?: boolean
 }) {
   const f = boxFaces(box)
-  const [top, left, right] = FILL[tone]
-  const edge = {
-    stroke: "var(--iso-stroke)",
-    strokeWidth: 1,
-    strokeLinejoin: "round" as const,
-    strokeDasharray: dashed ? "3 3" : undefined,
-    transition: "fill 240ms ease",
-  }
+  const [top, left, right] = FACE_FILL[tone]
+  const edge = hairline(dashed)
   return (
     <g>
       {shadow && (

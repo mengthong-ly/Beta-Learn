@@ -18,14 +18,14 @@ content/<course>/lessons/NN-slug.md
 ```
 
 `<course>` is the `id` in [`lib/courses.ts`](../lib/courses.ts): `python`, `php`, `laravel`,
-`typescript`, `react`, `cpp`, `dart`, `flutter`, `claude-code`.
+`typescript`, `react`, `cpp`, `rust`, `dart`, `flutter`, `claude-code`.
 
 **What you need installed** depends on that course's `runtime`:
 
 | Writing for | You need |
 | --- | --- |
 | `python`, `react`, `typescript`, `claude-code`, `php`, `laravel`, `cpp` | nothing beyond `npm install` — they run in the browser |
-| `dart`, `flutter` | the toolchain below, plus `npm run setup:runtimes` once |
+| `rust`, `dart`, `flutter` | the toolchain below, plus `npm run setup:runtimes` (Flutter only; re-run it after pulling if `/setup` says the sandbox isn't ready) |
 
 ```bash
 npm install
@@ -35,6 +35,7 @@ npm run dev               # http://localhost:3000
 
 | Course | Needs on your PATH | Version |
 | --- | --- | --- |
+| `rust` | `rustc` (install with [rustup](https://rustup.rs)) | ≥ 1.90 |
 | `dart` | `dart` | ≥ 3.13 |
 | `flutter` | `flutter` (brings its own `dart`) | ≥ 3.47 |
 
@@ -47,8 +48,8 @@ macOS or Linux only. The local runner requires an OS sandbox; on Linux install i
 `sudo apt install bubblewrap socat`. Windows can't run those courses at all — you can still
 author the browser courses there.
 
-For Dart, also re-record the real outputs that write-only learners on the website see:
-`npm run check:content -- --record dart` (commits `content/dart/outputs.json`). `check:content`
+For Rust and Dart, also re-record the real outputs that write-only learners on the website see:
+`npm run check:content -- --record rust` (commits `content/rust/outputs.json`). `check:content`
 fails when an example or solution has no recording.
 
 ---
@@ -93,6 +94,7 @@ a **Reference** link to the page you used.
 | TypeScript | <https://www.typescriptlang.org/docs/> |
 | React | <https://react.dev> |
 | C++ | <https://en.cppreference.com/> |
+| Rust | <https://doc.rust-lang.org/book/>, <https://doc.rust-lang.org/reference/>, <https://doc.rust-lang.org/std/> |
 | Dart / Flutter | <https://dart.dev>, <https://docs.flutter.dev> |
 
 ### 3b. The skeleton
@@ -160,8 +162,8 @@ assert lines == ["ANA", "BO"], f"Expected ANA then BO, got {lines}"
    checker asserts it really fails. For a fragment that isn't a whole program, use
    ```` ```<lang>-snippet ````; it's displayed but never run. Use ```` ```text ```` for output
    and diagrams.
-4. **Quiz `~~~` code questions are only verified for Python and C++ today.** Adding one to any
-   other course fails with *"quiz code questions are only verified for Python and C++ so far"*.
+4. **Quiz `~~~` code questions are only verified for Python, C++ and Rust today.** Adding one to any
+   other course fails with *"quiz code questions are only verified for Python, C++ and Rust so far"*.
    Write plain questions there, or extend `assertOutput` in
    [`scripts/check-content.ts`](../scripts/check-content.ts).
 
@@ -176,6 +178,7 @@ depends on the course:
 | PHP, Laravel | `$output` (string), `expect($ok, $msg)`; Laravel adds `visit($uri)` |
 | TypeScript, Claude Code | `output` (`string[]`, one per `console.log`), `expect(ok, msg)`, `lesson.*` for exports |
 | C++ | `output` (`std::vector<std::string>`), `expect(ok, msg)`, the lesson's own functions and types |
+| Rust | `output` (`Vec<String>`), `expect(ok, msg)`, `lesson::*` (private items too); the check is a Rust block indented 8 spaces |
 | Dart | `output` (`List<String>`), `expect(ok, msg)`, `lesson.*` |
 | React | `$`, `$$`, `click(el)`, `type(el, value)`, `tick(ms)`, `expect(ok, msg)` — runs against the live DOM |
 | Flutter | a `testWidgets` body: `tester`, `find`, `expect`; the app is already pumped |

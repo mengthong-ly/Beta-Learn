@@ -24,6 +24,8 @@ export function VizPlayer({
   footer,
   notice,
   onLine,
+  startAt,
+  keys,
 }: {
   steps: Step[]
   variant: "split" | "stacked"
@@ -31,9 +33,13 @@ export function VizPlayer({
   footer?: React.ReactNode
   notice?: string
   onLine?: (line?: number) => void
+  /** frame to open on: 0 is before the first step, i + 1 shows step i */
+  startAt?: number
+  /** false: no window-wide ← → Space shortcuts (the landing page) */
+  keys?: boolean
 }) {
   const layout = useMemo(() => layoutOf(steps), [steps])
-  const player = usePlayer(steps.length)
+  const player = usePlayer(steps.length, startAt)
   const step = layout.frames[player.index].step
   const line = step?.line
   useEffect(() => {
@@ -87,7 +93,7 @@ export function VizPlayer({
             <p className="text-xs text-muted-foreground">{notes.join(" · ")}</p>
           )}
           <StepNote step={step} />
-          <VizTimeline player={player} />
+          <VizTimeline player={player} keys={keys} />
           {footer}
         </aside>
       </div>

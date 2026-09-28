@@ -30,13 +30,18 @@ export function ScopeNode({ data }: NodeProps<Node<ScopeData, "scope">>) {
   const active = data.vars.findIndex((v) => v.state === "active")
   const cursor = active < 0 ? null : local(g, g.anchors[`slot:${active}`])
   const shown = data.vars.filter((v) => v.val !== undefined || v.ref)
+  // last slot in use, not a count: a hole must not pull the plate out from under a later block
+  const filled = data.vars.reduce(
+    (n, v, i) => (v.val !== undefined || v.ref ? i + 1 : n),
+    0
+  )
 
   return (
     <NodeCanvas
       canvas={g}
       label={`global variables: ${shown.map((v) => `${v.name} = ${v.ref ? "a list" : formatVal(v.val!)}`).join(", ") || "none yet"}`}
     >
-      <IsoPlatform box={g.plate} title={data.title} />
+      <IsoPlatform box={g.plate} slots={filled} title={data.title} />
       <AnimatePresence initial={false}>
         {data.vars.map((v, i) => {
           if (v.val === undefined && !v.ref) return null

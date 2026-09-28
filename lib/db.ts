@@ -12,6 +12,18 @@ export type Run = Pick<
   code: string
 }
 
+/** A committed prediction about an example, and whether the real run matched it. */
+export type Prediction = {
+  id: number
+  lessonId: string
+  createdAt: number
+  code: string
+  guess: string
+  ok: boolean
+  /** 1-based output line where it first diverged; absent on a match */
+  badLine?: number
+}
+
 /** Best score per quiz. key: "python/print" (lesson), "python/section:2", "python/final". */
 export type QuizResult = { key: string; best: number; total: number; passedAt?: number }
 
@@ -21,6 +33,7 @@ export const db = new Dexie("thonglearn") as Dexie & {
   drafts: EntityTable<{ lessonId: string; code: string; updatedAt?: number }, "lessonId">
   quizzes: EntityTable<QuizResult, "key">
   reads: EntityTable<{ lessonId: string; readAt: number }, "lessonId">
+  predictions: EntityTable<Prediction, "id">
 }
 
 db.version(1).stores({
@@ -60,4 +73,11 @@ db.version(2)
 db.version(3).stores({
   quizzes: "key",
   reads: "lessonId",
+})
+
+// v4: predictions on lesson examples. Deliberately not a `runs` row — predicting an
+// example in the reading column is not a challenge attempt, and the lesson steps mark
+// "Run code" done from runs.count().
+db.version(4).stores({
+  predictions: "++id, lessonId, createdAt",
 })
