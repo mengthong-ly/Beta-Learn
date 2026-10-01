@@ -16,6 +16,7 @@ import {
   useMarkdownComponents,
 } from "@/components/v1/doc"
 import { storageKey, useWorkspace } from "@/components/workspace-context"
+import { rehypeEmoji3d } from "@/lib/rehype-emoji"
 import { splitSteps, type Lesson } from "@/lib/lesson-parser"
 import { cn } from "@/lib/utils"
 
@@ -146,7 +147,7 @@ export function LessonStepper({ doc }: { doc: Lesson }) {
         className="mt-6 min-h-48 outline-none [&>h2:first-child]:mt-0"
       >
         {card.kind === "content" && (
-          <Markdown remarkPlugins={[remarkGfm]} components={components}>
+          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeEmoji3d]} components={components}>
             {card.body}
           </Markdown>
         )}

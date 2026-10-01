@@ -31,17 +31,21 @@ import {
 } from "@/components/workspace-context"
 import { findCourse, isLanguage } from "@/lib/courses"
 import type { Lesson } from "@/lib/lesson-parser"
+import { rehypeEmoji3d } from "@/lib/rehype-emoji"
 import { useCanRun } from "@/lib/runner"
 import { cn } from "@/lib/utils"
 
 type HastNode = {
   type: string
   value?: string
+  tagName?: string
   children?: HastNode[]
-  properties?: { className?: string[] }
+  properties?: { className?: string[]; alt?: string }
 }
 const toText = (n?: HastNode): string =>
-  (n?.value ?? "") + (n?.children ?? []).map(toText).join("")
+  (n?.value ?? "") +
+  (n?.tagName === "img" ? (n.properties?.alt ?? "") : "") +
+  (n?.children ?? []).map(toText).join("")
 
 const slug = (text: string) =>
   text
@@ -172,9 +176,9 @@ export function useMarkdownComponents(doc: Lesson): Components {
   const predict = isLanguage(c)
 
   return useMemo(() => ({
-    h2: ({ children }) => (
+    h2: ({ node, children }) => (
       <h2
-        id={slug(String(children))}
+        id={slug(toText(node as HastNode))}
         className="mt-10 mb-3 scroll-mt-4 text-[22px] leading-[1.3] font-semibold text-foreground"
       >
         {children}
@@ -347,7 +351,7 @@ export function Doc({ doc, chapter }: { doc: Lesson; chapter?: number }) {
       {doc.id === "guide" && doc.kind === "guide" ? (
         <GuideContents />
       ) : (
-        <Markdown remarkPlugins={[remarkGfm]} components={components}>
+        <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeEmoji3d]} components={components}>
           {doc.body}
         </Markdown>
       )}
