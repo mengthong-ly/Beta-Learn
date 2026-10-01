@@ -13,6 +13,7 @@ import {
   PlayIcon,
 } from "lucide-react"
 
+import { DiagramBlock } from "@/components/diagram"
 import { LessonSteps, markComplete, ReadSentinel, readOnly } from "@/components/lesson-steps"
 import { PredictOutput, PredictRun } from "@/components/predict-output"
 import { Quiz } from "@/components/quiz"
@@ -264,6 +265,7 @@ export function useMarkdownComponents(doc: Lesson): Components {
           "language-",
           ""
         ) ?? "text"
+      if (lang === "diagram") return <DiagramBlock src={code} />
       return (
         <div className="my-4 min-h-8 overflow-hidden rounded-lg bg-muted">
           <div className="flex h-8 items-center justify-between pr-1 pl-4 font-mono text-xs text-muted-foreground">
