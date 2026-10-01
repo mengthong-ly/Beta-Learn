@@ -57,11 +57,38 @@ function useFont() {
   )
 }
 
+export type LessonLayout = "steps" | "classic"
+const LAYOUT_STORAGE_KEY = "lesson-layout"
+function readLayout(): LessonLayout {
+  try {
+    return localStorage.getItem(LAYOUT_STORAGE_KEY) === "classic" ? "classic" : "steps"
+  } catch {
+    return "steps"
+  }
+}
+function setLessonLayout(layout: LessonLayout) {
+  try {
+    localStorage.setItem(LAYOUT_STORAGE_KEY, layout)
+  } catch {
+    /* private mode: the choice just won't persist */
+  }
+  listeners.forEach((l) => l())
+}
+/** "steps" (one card at a time) or "classic" (the V1 scrolling page). */
+export function useLessonLayout() {
+  return useSyncExternalStore(
+    (l) => (listeners.add(l), () => listeners.delete(l)),
+    readLayout,
+    () => "steps" as LessonLayout
+  )
+}
+
 /** A submenu: render it inside a DropdownMenuContent. */
 export function AppearanceMenu() {
   const { theme, setTheme } = useTheme()
   const font = useFont()
   const mascot = useMascot()
+  const layout = useLessonLayout()
 
   return (
     <DropdownMenuSub>
@@ -94,6 +121,17 @@ export function AppearanceMenu() {
             <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Lessons</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={layout}
+            onValueChange={(v) => setLessonLayout(v as LessonLayout)}
+          >
+            <DropdownMenuRadioItem value="steps">Step by step</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="classic">Classic (one page)</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

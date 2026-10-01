@@ -11,6 +11,8 @@ print(42)
 print("Sum:", 2 + 3)
 ```
 
+---
+
 Pass several values separated by commas and `print` puts a space between them. Two keyword arguments change that:
 
 | Argument | Default | What it does                     |

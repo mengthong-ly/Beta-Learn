@@ -12,8 +12,19 @@ import type { Lesson } from "@/lib/lesson-parser"
 import { useCanRun } from "@/lib/runner"
 import { pushRow } from "@/lib/sync"
 
-/** Marks the lesson as read once its end scrolls into view. */
-export function ReadSentinel({ lessonKey }: { lessonKey: string }) {
+/** Completes a lesson. Challenges do this when their check passes (components/workspace.tsx);
+ *  lessons without one complete on passing their quiz, or on reading to the end if there's no quiz. */
+export function markComplete(lessonKey: string) {
+  const row = { lessonId: lessonKey, completedAt: Date.now() }
+  db.progress.put(row)
+  pushRow("progress", row)
+}
+
+/** The lesson has nothing left to do but read: no challenge, no quiz. */
+export const readOnly = (doc: Lesson) => !doc.check && !doc.quiz?.length
+
+/** Marks the lesson as read once its end scrolls into view (and complete, for `complete` lessons). */
+export function ReadSentinel({ lessonKey, complete = false }: { lessonKey: string; complete?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = ref.current
@@ -23,11 +34,12 @@ export function ReadSentinel({ lessonKey }: { lessonKey: string }) {
       const row = { lessonId: lessonKey, readAt: Date.now() }
       db.reads.put(row)
       pushRow("reads", row)
+      if (complete) markComplete(lessonKey)
       io.disconnect()
     })
     io.observe(el)
     return () => io.disconnect()
-  }, [lessonKey])
+  }, [lessonKey, complete])
   return <div ref={ref} aria-hidden />
 }
 
@@ -46,12 +58,15 @@ export function LessonSteps({ doc }: { doc: Lesson }) {
     [key],
     [false, false, false]
   )
+  const challenge = !!doc.check
+  // Lessons that are only reading (Fundamentals' early units) have no code to run.
+  const code = challenge || doc.body.includes("```" + findCourse(course).lang + "\n")
   // Write-only (a hosted copy without the learner's runner) hides the steps it can't do, unless already done.
   const steps = (
     [
       ["Read", read, true],
-      ["Run code", ran, canRun],
-      ["Pass challenge", done.includes(doc.id), canRun],
+      ["Run code", ran, canRun && code],
+      ...(challenge ? [["Pass challenge", done.includes(doc.id), canRun]] : []),
       ...(doc.quiz?.length ? [["Pass quiz", quiz, true]] : []),
     ] as [string, boolean, boolean][]
   ).filter(([, ok, possible]) => ok || possible)

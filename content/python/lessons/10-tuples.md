@@ -33,6 +33,8 @@ lo, hi = min_max([4, 8, 1, 9])
 print(lo, hi)
 ```
 
+---
+
 > ⚠️ **Gotcha:** `(42)` is just the number 42 in parentheses. A tuple needs a comma: `(42,)`.
 
 Tuples can be dict keys (lists can't), because they're immutable:

@@ -1,5 +1,6 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { useLiveQuery } from "dexie-react-hooks"
 import { ArrowRightIcon } from "lucide-react"
@@ -7,16 +8,30 @@ import { ArrowRightIcon } from "lucide-react"
 import { CourseMark } from "@/components/course-switcher"
 import type { Course } from "@/lib/courses"
 import { db } from "@/lib/db"
+import { GOAL_COURSES, readPlacement } from "@/lib/placement"
+
+const noop = () => () => {}
 
 export function CourseCard({
   course,
   lessonIds,
   guideCount,
+  href = `/${course.id}`,
 }: {
   course: Course
   lessonIds: string[]
   guideCount: number
+  href?: string
 }) {
+  // What the learner said they want to build at /start picks the courses to suggest.
+  const suggested = useSyncExternalStore(
+    noop,
+    () => {
+      const goal = readPlacement()?.goal
+      return !!goal && GOAL_COURSES[goal]?.[0] === course.id
+    },
+    () => false
+  )
   const keys = useLiveQuery(
     () =>
       db.progress.where("lessonId").startsWith(`${course.id}/`).primaryKeys(),
@@ -40,13 +55,20 @@ export function CourseCard({
 
   return (
     <Link
-      href={`/${course.id}`}
+      href={href}
       className="group flex h-full flex-col gap-4 rounded-xl border p-5 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <div className="flex items-center gap-3">
         <CourseMark mark={course.mark} />
         <div className="min-w-0">
-          <h2 className="font-semibold">{course.name}</h2>
+          <h2 className="flex items-center gap-2 font-semibold">
+            {course.name}
+            {suggested && (
+              <span className="rounded-sm bg-tint-mint px-1.5 py-0.5 text-xs font-medium text-success">
+                Suggested for you
+              </span>
+            )}
+          </h2>
           <p className="text-xs text-muted-foreground">
             {lessonIds.length} {lessonIds.length === 1 ? "lesson" : "lessons"}
             {guideCount > 0 && ` · ${guideCount} guide chapters`}

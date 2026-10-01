@@ -17,7 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { courses, isExtra, type Course } from "@/lib/courses"
+import { courses, findCourse, isExtra, type Course } from "@/lib/courses"
 
 export function CourseMark({ mark }: { mark: string }) {
   return (
@@ -29,7 +29,7 @@ export function CourseMark({ mark }: { mark: string }) {
 
 /** Sidebar header: the current course, with a menu to switch course or go back Home. */
 export function CourseSwitcher({ course }: { course: string }) {
-  const current = courses.find((c) => c.id === course) ?? courses[0]
+  const current = findCourse(course)
   const item = (c: Course) => (
     <DropdownMenuItem key={c.id} asChild>
       <Link href={`/${c.id}`}>

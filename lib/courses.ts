@@ -11,6 +11,18 @@
  */
 export const courses = [
   {
+    id: "fundamentals",
+    name: "Programming Fundamentals",
+    mark: "Go",
+    tagline: "Never coded? Start here: what code is, the tools, and how programmers think.",
+    runtime: "pyodide",
+    lang: "python",
+    file: "main.py",
+    comment: "#",
+    hello: 'print("Hello, world!")\n',
+    start: true,
+  },
+  {
     id: "python",
     name: "Python",
     mark: "Py",
@@ -127,6 +139,9 @@ export const courses = [
   },
 ] as const
 
+/** Is this the "Start here" course for people who have never coded? */
+export const isStart = (c: Course) => "start" in c && c.start
+
 /** Is this one of the extra (non-language) courses? */
 export const isExtra = (c: Course) => "extra" in c && c.extra
 
@@ -137,7 +152,7 @@ export type Course = (typeof courses)[number]
 export type CourseId = Course["id"]
 
 export const findCourse = (id: string): Course =>
-  courses.find((c) => c.id === id) ?? courses[0]
+  courses.find((c) => c.id === id) ?? courses.find((c) => c.id === "python")!
 
 /** Editor contents while reading a guide chapter. */
 export const guideStarter = (c: Course) =>

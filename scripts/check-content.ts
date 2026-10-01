@@ -17,7 +17,7 @@ import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { gunzipSync } from "node:zlib"
 
-import { courses, type Course } from "../lib/courses.ts"
+import { courses, isStart, type Course } from "../lib/courses.ts"
 import { parseLesson, type Output } from "../lib/lesson-parser.ts"
 import { examples as examplesIn, outputKey, readOutputs, writeOutputs } from "../lib/outputs.ts"
 import { runLocal, type LocalCourse } from "../lib/local-runner.ts"
@@ -263,7 +263,11 @@ for (const c of courses.filter((c) => !only.length || only.includes(c.id))) {
         continue
       }
       const problems: string[] = []
-      if (dir === "lessons") {
+      // Fundamentals' concept lessons have no challenge: they're completed by their quiz.
+      const conceptLesson = isStart(c) && !l.starter.trim() && !l.solution && !l.check
+      if (dir === "lessons" && conceptLesson) {
+        if (!l.quiz?.length) problems.push("a lesson without a challenge needs a quiz")
+      } else if (dir === "lessons") {
         if (!l.starter.trim()) problems.push("missing starter")
         if (!l.solution || !l.check) problems.push("missing solution/check")
         else {

@@ -47,10 +47,13 @@ export function Quiz({
   title,
   questions,
   storeKey,
+  onPass,
 }: {
   title: string
   questions: Question[]
   storeKey: string
+  /** runs on every passing attempt */
+  onPass?: () => void
 }) {
   const total = questions.length
   const saved = useLiveQuery(() => db.quizzes.get(storeKey), [storeKey])
@@ -86,7 +89,10 @@ export function Quiz({
     }
     await db.quizzes.put(row)
     pushRow("quizzes", row)
-    if (passed) celebrate(score === total)
+    if (passed) {
+      celebrate(score === total)
+      onPass?.()
+    }
   }
 
   return (

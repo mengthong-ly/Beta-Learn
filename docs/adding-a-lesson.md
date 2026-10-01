@@ -167,6 +167,8 @@ assert lines == ["ANA", "BO"], f"Expected ANA then BO, got {lines}"
    Write plain questions there, or extend `assertOutput` in
    [`scripts/check-content.ts`](../scripts/check-content.ts).
 
+**Fundamentals is the exception.** It's the "Start here" course (`start: true` in `lib/courses.ts`), for people who have never coded. Its concept lessons (what code is, editors, the terminal, Git) may have **no challenge**: leave out the starter, solution and check fences and include a quiz instead. Passing the quiz completes the lesson (`markComplete` in `components/lesson-steps.tsx`). From Unit 4 (Building blocks) on, lessons have a small challenge like any other course. Placement at `/start` (`lib/placement.ts`) starts learners at lesson `what-is-a-program`, `algorithms` or `values-and-types`, so don't rename those slugs.
+
 ### 3d. Writing the check
 
 The check runs *after* the learner's code, inside a wrapper the runner generates. What's in scope

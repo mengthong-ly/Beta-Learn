@@ -21,6 +21,8 @@ word = "Python"
 print(word[1:4], word[::-1], word[:1].lower())
 ```
 
+---
+
 Slices never raise `IndexError`; out-of-range bounds just clip:
 
 ```python

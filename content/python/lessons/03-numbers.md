@@ -23,6 +23,8 @@ Ints can be as big as you like, with no overflow:
 print(2 ** 100)
 ```
 
+---
+
 > ⚠️ **Gotcha:** floats are approximations. `0.1 + 0.2` is `0.30000000000000004`. Use `round()` when displaying.
 
 ```python

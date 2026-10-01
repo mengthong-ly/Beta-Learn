@@ -71,6 +71,37 @@ export function parseLesson(
   }
 }
 
+export type Step = { title?: string; body: string }
+
+/** Splits a lesson body into steps at `## ` headings and `---` lines (outside code fences).
+ *  A `---` step keeps the title of the heading above it. Empty steps are dropped. */
+export function splitSteps(body: string): Step[] {
+  const steps: Step[] = []
+  let title: string | undefined
+  let lines: string[] = []
+  let fence = ""
+  const flush = () => {
+    const text = lines.join("\n").trim()
+    if (text) steps.push(title === undefined ? { body: text } : { title, body: text })
+    lines = []
+  }
+  for (const line of body.split("\n")) {
+    const marker = line.match(/^\s*(```|~~~)/)?.[1]
+    if (marker && (!fence || fence === marker)) fence = fence ? "" : marker
+    if (!fence && line.trim() === "---") {
+      flush()
+      continue
+    }
+    if (!fence && line.startsWith("## ")) {
+      flush()
+      title = line.slice(3).trim()
+    }
+    lines.push(line)
+  }
+  flush()
+  return steps
+}
+
 export const playground: Lesson = {
   id: "playground",
   kind: "playground",

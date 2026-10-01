@@ -66,6 +66,12 @@ expect(output[0] === "Hello Maddison, it is 2026!", "Log exactly: Hello Maddison
 **Reference:** [The Basics](https://www.typescriptlang.org/docs/handbook/2/basic-types.html)
 ````
 
+### Steps
+
+Lessons show one step at a time (`components/lesson-stepper.tsx`; "Classic" in Appearance brings back the one-page V1 layout in `components/v1/doc.tsx`). A new step starts at every `## ` heading and at every `---` line outside a code fence (`splitSteps` in `lib/lesson-parser.ts`). The quiz and a finish card are added as the last two steps.
+
+Aim for one idea and one or two examples per step. If a step holds more, put a `---` line between the ideas. A step after `---` keeps the title of the heading above it. Guide chapters always scroll, so don't use `---` in them.
+
 ### Frontmatter
 
 | Key | Required | Notes |

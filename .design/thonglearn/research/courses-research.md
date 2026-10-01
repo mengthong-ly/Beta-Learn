@@ -160,3 +160,24 @@ Laravel Bootcamp / Learn: laravel.com/learn exists and wasn't explored (**UNVERI
 - Claude API, tool use, Agent Skills, MCP connector, evals: https://platform.claude.com/docs/en/home (index https://platform.claude.com/llms.txt)
 - MCP: https://modelcontextprotocol.io and the TypeScript SDK (v1.x branch)
 - Workflow patterns: https://www.anthropic.com/engineering/building-effective-agents
+
+---
+
+## Programming Fundamentals ("Start here" course)
+
+Added 2026-10-01. A language-neutral on-ramp for people who have never coded; tiny runnable bits run in Python (Pyodide). Base every lesson on these official sources:
+
+| Topic | Source |
+|---|---|
+| What a program is, why automate, interpreted vs compiled | docs.python.org/3/tutorial/appetite.html, docs.python.org/3/glossary.html (interpreted, bytecode, statement, expression, function, argument, type) |
+| Running code, the interactive interpreter | docs.python.org/3/tutorial/interpreter.html |
+| Values, types, variables, operators | docs.python.org/3/tutorial/introduction.html |
+| Decisions, loops, functions | docs.python.org/3/tutorial/controlflow.html |
+| Lists | docs.python.org/3/tutorial/datastructures.html |
+| Errors, tracebacks | docs.python.org/3/tutorial/errors.html |
+| Editors and IDEs | code.visualstudio.com/docs (editing, IntelliSense, debugging) and the glossary's IDLE entry |
+| The terminal, files and folders | developer.mozilla.org/en-US/docs/Learn_web_development/Getting_started/Environment_setup (command line, dealing with files) |
+| How the web and computers run code | developer.mozilla.org/en-US/docs/Learn_web_development |
+| Version control | git-scm.com/book/en/v2/Getting-Started-About-Version-Control |
+
+Note: `input()` is not available in the browser runtime (`public/python.worker.js` raises), so lessons show it as a `python-snippet` and use assigned variables in runnable code.

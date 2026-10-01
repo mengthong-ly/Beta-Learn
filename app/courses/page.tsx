@@ -4,7 +4,7 @@ import { MonitorCogIcon } from "lucide-react"
 import { CourseCard } from "@/components/course-card"
 import { getCourse } from "@/lib/content"
 import { Separator } from "@/components/ui/separator"
-import { courses, isExtra, type Course } from "@/lib/courses"
+import { courses, isExtra, isStart, type Course } from "@/lib/courses"
 
 function CourseGrid({ list }: { list: Course[] }) {
   return (
@@ -22,6 +22,25 @@ function CourseGrid({ list }: { list: Course[] }) {
         )
       })}
     </ul>
+  )
+}
+
+/** Fundamentals sits above the grid: it's where anyone new to code should begin. */
+function StartHere() {
+  const c = courses.find(isStart)!
+  const { lessons } = getCourse(c.id)!
+  return (
+    <div className="mt-8">
+      <h2 className="mb-2 text-sm font-medium text-muted-foreground">
+        New to coding? Start here
+      </h2>
+      <CourseCard
+        course={c}
+        lessonIds={lessons.map((l) => l.id)}
+        guideCount={0}
+        href="/start"
+      />
+    </div>
   )
 }
 
@@ -49,7 +68,8 @@ export default function Courses() {
         Each course has its own lessons, guide book and playground. Your
         progress is saved in this browser.
       </p>
-      <CourseGrid list={courses.filter((c) => !isExtra(c))} />
+      <StartHere />
+      <CourseGrid list={courses.filter((c) => !isExtra(c) && !isStart(c))} />
       <div className="mt-12 flex items-center gap-3">
         <h2 className="shrink-0 text-sm font-medium text-muted-foreground">
           Extra courses
