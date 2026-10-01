@@ -539,8 +539,34 @@
    resize. Transform and opacity only, both driven by the variable that is
    already updating this frame. */
 .hero-copy {
-  transform: translate3d(0, calc(var(--hero-t, 0) * -2rem), 0);
+  transform: perspective(1200px)
+    translate3d(
+      0,
+      calc(var(--hero-t, 0) * -2rem),
+      calc(var(--hero-t, 0) * -140px)
+    )
+    rotateX(calc(var(--hero-t, 0) * 14deg));
   opacity: calc(1 - var(--hero-t, 0) * 0.4);
+}
+
+/* The hero editor opens leaning back like a laptop lid and stands up as the
+   canvas closes, so the first scroll reads as the screen turning to face you.
+   The wrapper supplies the perspective; the hinge is the bottom edge. */
+.hero-device {
+  transform-origin: 50% 100%;
+  transform: rotateX(calc((1 - var(--hero-t, 0)) * 24deg))
+    scale(calc(0.94 + var(--hero-t, 0) * 0.06));
+  will-change: transform;
+}
+
+/* The sky grid folds back into a floor on the same scroll, hinged at the
+   horizon, which gives the canvas its depth. Scoped to the hero: the CTA band
+   reuses the flat grid. */
+.hero-surface .hero-grid {
+  transform-origin: 50% 70%;
+  transform: perspective(700px)
+    rotateX(calc(var(--hero-t, 0) * 52deg))
+    scale(calc(1 + var(--hero-t, 0) * 0.7));
 }
 
 /* A fine grid over the sky only. It fades before it reaches the hills, and a
@@ -686,6 +712,123 @@
     animation-range: entry 35% entry 95%;
   }
 }
+@supports (animation-timeline: view()) {
+  /* Feature cards rise out of the page's depth as they enter and tip away as
+     they leave. Two animations on two ranges: the exit has no backwards fill,
+     so it stays out of the way until its range begins. */
+  .rise-3d {
+    animation:
+      rise-3d linear both,
+      sink-3d linear forwards;
+    animation-timeline: view(), view();
+    animation-range:
+      entry 0% entry 90%,
+      exit 15% exit 100%;
+  }
+
+  /* The three steps fan in: the outer two swing in from their sides, the
+     middle one rises. */
+  .fan-3d {
+    --from: translate3d(0, 90px, -180px) rotateX(30deg);
+    transform-origin: 50% 100%;
+    animation:
+      from-3d linear both,
+      sink-3d linear forwards;
+    animation-timeline: view(), view();
+    animation-range:
+      entry 0% entry 90%,
+      exit 15% exit 100%;
+  }
+  .fan-3d:nth-child(3n + 1) {
+    --from: translate3d(-80px, 40px, -220px) rotateY(38deg);
+    transform-origin: 0% 50%;
+  }
+  .fan-3d:nth-child(3n) {
+    --from: translate3d(80px, 40px, -220px) rotateY(-38deg);
+    transform-origin: 100% 50%;
+  }
+
+  /* Course tiles turn in like pages, hinged on their outer edge. */
+  .flip-3d {
+    --from: translate3d(-40px, 40px, -160px) rotateY(-42deg);
+    transform-origin: 0% 50%;
+    animation: from-3d linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 85%;
+  }
+  .flip-3d:nth-child(even) {
+    --from: translate3d(40px, 40px, -160px) rotateY(42deg);
+    transform-origin: 100% 50%;
+  }
+
+  /* Big surfaces (the Visualizer, the dark bands) stand up from the floor. */
+  .stand-up {
+    transform-origin: 50% 100%;
+    animation: stand-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 35%;
+  }
+}
+@keyframes rise-3d {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 90px, -180px) rotateX(28deg);
+  }
+}
+@keyframes from-3d {
+  from {
+    opacity: 0;
+    transform: var(--from);
+  }
+}
+@keyframes sink-3d {
+  to {
+    opacity: 0.35;
+    transform: translate3d(0, -30px, -140px) rotateX(-16deg);
+  }
+}
+@keyframes stand-up {
+  from {
+    opacity: 0.2;
+    transform: perspective(1600px) translate3d(0, 80px, 0) rotateX(34deg)
+      scale(0.92);
+  }
+}
+
+/* The parent of 3D cards: the camera they turn in front of. */
+.stage-3d {
+  perspective: 1500px;
+}
+
+/* Pointer tilt (components/landing/tilt-cards.tsx) sets `rotate` and the glare
+   position. It eases back when the pointer leaves, and tracks closely while
+   it moves. */
+.tilt {
+  position: relative;
+  transition: rotate 700ms var(--ease-glide);
+}
+.tilt[data-tilting] {
+  transition: rotate 140ms linear;
+}
+.tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--glare-x, 50%) var(--glare-y, 0%),
+    rgb(255 255 255 / 0.16),
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 400ms var(--ease-glide);
+}
+.tilt[data-tilting]::after {
+  opacity: 1;
+}
+
 @keyframes reveal {
   from {
     opacity: 0;
@@ -712,6 +855,9 @@
 /* The landing speaks in a sans; code, labels and numbers keep --font-mono.
    The app's own pages still follow the Appearance menu. */
 .landing {
+  /* Cards turning in from the side project past the viewport for a moment;
+     clip (not hidden) so the page gains no scroll container and sticky works. */
+  overflow-x: clip;
   --font-ui: "Google Sans", ui-sans-serif, system-ui, sans-serif;
   font-family: var(--font-ui);
 }
@@ -870,8 +1016,15 @@
   .word,
   .reveal,
   .wipe,
-  .rule-grow {
+  .rule-grow,
+  .rise-3d,
+  .fan-3d,
+  .flip-3d,
+  .stand-up {
     animation: none;
+  }
+  .hero-surface .hero-grid {
+    transform: none;
   }
   /* --hero-t settles at 1 under reduced motion, so the scroll-linked pieces
      have to be told to stay at their resting values instead of reading it. */

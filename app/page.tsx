@@ -14,6 +14,7 @@ import {
   TryMock,
   VizMock,
 } from "@/components/landing/mocks"
+import { TiltCards } from "@/components/landing/tilt-cards"
 import { TypingCode } from "@/components/landing/typing-code"
 import { VizShowcase } from "@/components/landing/viz-showcase"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -165,9 +166,10 @@ function Feature({
   return (
     <li
       className={cn(
-        "reveal flex flex-col rounded-[28px] bg-muted p-2",
+        "rise-3d tilt flex flex-col rounded-[28px] bg-muted p-2",
         className
       )}
+      data-tilt
     >
       <div className="feature-stage flex min-h-72 flex-1 items-center justify-center overflow-hidden rounded-[20px] p-6 sm:p-10">
         {children}
@@ -242,6 +244,7 @@ export default function Landing() {
           inset card (see .hero-runway), and only then scrolls away. Nothing sits
           over it — the nav follows below and sticks once you scroll past. */}
       <HeroShrink />
+      <TiltCards />
       <div className="hero-runway">
         {/* The pin and the shrink must live on different elements: a scroll
             timeline goes inactive on a `position: sticky` element, so the
@@ -316,9 +319,12 @@ export default function Landing() {
 
             {/* Peeks over the bottom edge of the canvas, like an app resting on it. */}
             <div
-              className={`${ENTER} w-full max-w-2xl px-5 delay-1000 duration-1000 sm:px-0`}
+              className={`${ENTER} w-full max-w-2xl px-5 delay-1000 duration-1000 [perspective:1100px] sm:px-0`}
             >
-              <TypingCode />
+              {/* Leans back like a laptop lid, and stands up as the hero closes. */}
+              <div className="hero-device">
+                <TypingCode />
+              </div>
             </div>
           </section>
         </div>
@@ -403,7 +409,7 @@ export default function Landing() {
           checked, and can be taken apart line by line.
         </Heading>
 
-        <ul className="mt-14 grid gap-4 lg:grid-cols-12">
+        <ul className="stage-3d mt-14 grid gap-4 lg:grid-cols-12">
           <Feature
             className="lg:col-span-7"
             title="Nothing to install"
@@ -458,7 +464,9 @@ export default function Landing() {
           Every variable, list and function call drawn as it happens. Press
           Play, or step forwards and back yourself.
         </Heading>
-        <VizShowcase />
+        <div className="stand-up">
+          <VizShowcase />
+        </div>
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-5 pb-28 sm:pb-40">
@@ -474,7 +482,7 @@ export default function Landing() {
           </p>
         </div>
 
-        <ol className="mt-12 grid gap-4 md:grid-cols-3">
+        <ol className="stage-3d mt-12 grid gap-4 md:grid-cols-3">
           {[
             {
               title: "Pick a course",
@@ -494,7 +502,8 @@ export default function Landing() {
           ].map((step, i) => (
             <li
               key={step.title}
-              className="reveal flex flex-col overflow-hidden rounded-[28px] bg-muted"
+              data-tilt
+              className="fan-3d tilt flex flex-col overflow-hidden rounded-[28px] bg-muted"
             >
               <div className="p-6">
                 <h3 className="flex gap-2 font-medium">
@@ -518,7 +527,7 @@ export default function Landing() {
 
       {/* The one dark band, inset like the hero card so the two rhyme. Dark in
           both themes: it is a stage, not a surface that follows the theme. */}
-      <section className="band-dark relative isolate mx-2 overflow-hidden rounded-[28px] px-5 py-24 text-white sm:mx-4 sm:py-32">
+      <section className="band-dark stand-up relative isolate mx-2 overflow-hidden rounded-[28px] px-5 py-24 text-white sm:mx-4 sm:py-32">
         <div className="mx-auto max-w-6xl">
           <Heading
             eyebrow="Why it sticks"
@@ -586,9 +595,9 @@ export default function Landing() {
 
         {/* Green tiles on the white page: `dark` forces the dark tokens
               inside in both themes. */}
-        <ul className="dark mt-12 grid gap-4 text-foreground sm:grid-cols-2">
+        <ul className="stage-3d dark mt-12 grid gap-4 text-foreground sm:grid-cols-2">
           {courses.map((c) => (
-            <li key={c.id} className="reveal">
+            <li key={c.id} data-tilt className="flip-3d tilt rounded-3xl">
               <Link
                 href={`/${c.id}`}
                 style={{ "--brand": courseColor(c.id) } as React.CSSProperties}
@@ -665,7 +674,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="band-cta relative isolate mx-2 overflow-hidden rounded-[28px] px-5 py-24 text-center text-white sm:mx-4 sm:py-32">
+      <section className="band-cta stand-up relative isolate mx-2 overflow-hidden rounded-[28px] px-5 py-24 text-center text-white sm:mx-4 sm:py-32">
         <div
           aria-hidden
           className="hero-grid pointer-events-none absolute inset-0 -z-10 opacity-60"
