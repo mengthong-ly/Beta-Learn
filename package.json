@@ -14,7 +14,8 @@
     "postinstall": "prisma generate",
     "check:content": "node scripts/build-ts-assets.mjs && node --no-warnings scripts/check-content.ts",
     "setup:runtimes": "node --no-warnings scripts/setup-runtimes.ts",
-    "check:runner": "node --no-warnings scripts/check-runner.ts"
+    "check:runner": "node --no-warnings scripts/check-runner.ts",
+    "emoji": "node --no-warnings scripts/build-emoji.ts"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",
